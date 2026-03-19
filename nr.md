@@ -34,6 +34,39 @@ Context file: `.claude/netrunner/context.md` (relative to project root)
 
 Check `.claude/netrunner/context.md`:
 - **Exists** → Read it fully. All constraints, metrics, tried approaches, diagnostic state, and implementation confidence come from here.
+
+  ### Schema migration (silent)
+
+  After reading context.md, detect schema version:
+  - Has `## Diagnostic State` section AND `Impl. Confidence` column in What Has Been Tried table? → **v2 (current)** → skip migration, proceed normally.
+  - Missing either? → **v1 (legacy)** → migrate below.
+
+  **v1 → v2 migration steps:**
+
+  **A. Add Diagnostic State section.** Insert between `## Hard Constraints` and `## What Has Been Tried`:
+  ```
+  ## Diagnostic State
+
+  **Model behavior hypothesis:**
+  Unknown — not yet established
+
+  **Evidence:**
+  - None yet — flying blind on model internals
+
+  **Open diagnostic questions:**
+  - [to be filled on next /nr invocation]
+  ```
+
+  **B. Expand What Has Been Tried table.** Transform 3-column (`Approach | Outcome | Notes`) to 5-column format. Add `Impl. Confidence` and `Failure Mode` columns — default all existing rows to `Unknown`. Update header: `| Approach | Outcome | Impl. Confidence | Failure Mode | Notes |` and separator: `|----------|---------|-----------------|--------------|-------|`. Preserve existing Notes content verbatim — NEVER modify, truncate, or summarize existing text.
+
+  **C. Add Update Log entry.** Append row: date = today (YYYY-MM-DD), change = `Schema migrated to v2`.
+
+  **D. Write back.** Save the migrated content to `.claude/netrunner/context.md`.
+
+  **Partial migration:** If context.md has Diagnostic State but is missing Impl. Confidence column (or vice versa), apply only the missing migration steps. Do not duplicate existing sections or columns.
+
+  > **CRITICAL — zero data loss:** Migration ONLY adds new sections and columns with default values. It NEVER modifies, summarizes, rewords, or deletes existing content. Every number, configuration value, and measurement in the original file must appear identically in the migrated file.
+
 - **Missing** → Inform user: "No Netrunner context found. Run `/nr init` to build one." Proceed with conversation context only.
 - **Query is "init"** → Go to INIT flow.
 
