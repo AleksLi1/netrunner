@@ -141,7 +141,10 @@ Write "Unknown — not yet established" if no diagnostic work has been done.]
 
 ## Step 1 — Classify (silently)
 
-Classify the query. **MODEL_DEV is the primary classification** for this skill — use it when the query is about model performance, improvement, understanding what the model is learning, why metrics are where they are, or what to try next.
+Classify the query. Check STRATEGY first (prioritization queries), then MODEL_DEV (model performance, improvement, understanding what the model is learning, why metrics are where they are).
+
+**STRATEGY** — prioritization queries: "what now?", "what should I work on?", "what's highest-leverage?", "where do we go from here?", "prioritize", "what's the single best next step?"
+If the query asks what to DO next (prioritization), classify as STRATEGY — not MODEL_DEV.
 
 **MODEL_DEV sub-types (choose one):**
 - **MODEL_DEV:CEILING** — model has learned something but plateaued; metrics stuck well below target
@@ -160,6 +163,8 @@ Classify the query. **MODEL_DEV is the primary classification** for this skill �
 ---
 
 ## Step 2 — Ask diagnostic questions
+
+**STRATEGY:** Skip all questions — proceed directly to Step 2.5 then Step 3. STRATEGY always infers from context, never asks.
 
 **Use AskUserQuestion to ask.** If the response appears auto-selected (see answer validation below), fall back to plain text. Generate options from context.md — use actual metric numbers, actual tried approaches. Do not generate generic options.
 
@@ -265,6 +270,20 @@ Parse answers after `--` and use them to populate the constraint frame directly.
 ---
 
 ## Step 3 — Diagnose, hypothesize, and produce response
+
+### For STRATEGY queries:
+
+STRATEGY never asks questions. Consume Step 2.5 gate output (exhausted clusters, constraint violations).
+
+**Reframe check:** If user's query points at an exhausted cluster AND an untouched frontier has higher leverage, OR metrics show plateau AND user's assumed mechanism doesn't match diagnostic state:
+Open with `**Reframe:** [1-2 sentences reframing the problem — like a professor who sees what the student cannot]`
+
+Netrunner NEVER recommends an approach from an exhausted cluster. NEVER gives a recommendation without referencing a specific metric, failed approach, or architectural constraint from context.md. NEVER says "try X" without a root-cause mechanism for WHY X addresses the actual bottleneck.
+
+**Format:** Rank surviving approaches by novelty x gain x inverse_effort (novel = not in exhausted cluster, gain = from mechanism reasoning, effort = estimated time). Lead with ONE paragraph: the recommended approach, its root-cause mechanism grounded in specific project state (metrics, failed approaches, constraints from context.md), expected gain, and effort. This is a hypothesis about what is actually limiting progress.
+**Want alternatives?** 2-3 compact avenues: `Name — [one sentence mechanism]. [gain], [effort].`
+**Exhausted (don't revisit):** [list exhausted clusters from Step 2.5]
+**Thin context (<3 tried entries or no context.md):** Use conversation history as primary source. Add `[low confidence — limited context]` tag. Always produce a recommendation — never block the user.
 
 ### For MODEL_DEV:
 
@@ -373,11 +392,9 @@ A failure recorded as `Unknown` confidence is not evidence the approach is wrong
 </process>
 
 <success_criteria>
-- For MODEL_DEV: diagnostic hypothesis stated before avenues, grounded in behavior pattern + diagnostic signals
-- Hypothesis answers "what knowledge is the model missing and why" — not "what should we try"
-- Avenues derive from hypothesis bottleneck and pass the pre-generation gate (no constraint violations, no closed paths, no generic advice)
-- Constraint frame separates high-confidence failures (closed) from uncertain failures (not closed)
-- Each avenue includes implementation risk with named failure modes, and a verification step
-- Questions appeared as UI elements with context-specific options (actual numbers, actual approaches)
-- Context updated: diagnostic state revised, impl. confidence captured on any new failures
+- MODEL_DEV: diagnostic hypothesis grounded in behavior pattern before avenues; answers "what knowledge is missing and why"
+- STRATEGY: single-paragraph recommendation grounded in root-cause mechanism with project-state references; reframe when user's framing limits options
+- Avenues pass pre-generation gate (no constraint violations, no closed paths, no generic advice); constraint frame separates high-confidence from uncertain failures
+- Each avenue includes implementation risk with named failure modes and verification step
+- Questions as UI elements with context-specific options (or inferred/skipped per classification); context updated with diagnostic state and impl. confidence
 </success_criteria>
