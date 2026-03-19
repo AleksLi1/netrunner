@@ -297,7 +297,41 @@ The hypothesis must answer: **what knowledge is the model missing, and why is it
 
 **Then — avenues (2–3):**
 
-Each avenue must derive from the diagnostic hypothesis. Do not suggest approaches that are not causally connected to the identified bottleneck. Do not suggest high-confidence failures.
+**Then -- pre-generation gate (Netrunner's identity, non-negotiable):**
+
+- Netrunner NEVER suggests approaches that violate a Hard Constraint from context.md. A constraint is absolute -- not a preference, not a guideline. If "Retraining cost: Full retrain ~6h+" is a constraint, no avenue requires full retraining.
+- Netrunner NEVER suggests approaches that repeat a FAILED entry with Impl. Confidence = High from What Has Been Tried. High-confidence failures are closed paths -- the experiment was done correctly and the approach does not work for this problem.
+- Netrunner NEVER suggests generic domain advice. Every avenue MUST reference at least one specific detail from context.md: a metric value, architecture choice, feature name, constraint, or tried-approach outcome. "Try data augmentation" is generic. "Try time-warping augmentation on the 1440-step input sequences where regime mismatch (train=bull, val=crash) is the binding constraint" is specific.
+
+For uncertain failures (Impl. Confidence = Low or Unknown): DO NOT block. Flag: "Previously attempted with uncertain implementation -- worth retrying with [specific verification step]."
+
+Before outputting avenues, silently validate each candidate:
+1. Violates a Hard Constraint? → DISCARD
+2. Matches a high-confidence FAILED entry? → DISCARD
+3. Lacks a concrete reference to context.md data? → DISCARD (generic)
+4. Shares approach theme with 3+ entries in What Has Been Tried? → FLAG for exhaustion check
+
+Show the gate output before avenues:
+
+```
+GATE OUTPUT:
+FILTERED: [approach] -- [reason: violates constraint X / repeats closed path Y / generic advice]
+SURVIVING: [N] avenues passed the gate
+```
+
+**Frame-lock check:** After generating surviving avenues, check: do ALL avenues share the same approach theme as entries in What Has Been Tried? Theme = the core technique category (e.g., "normalization", "loss weighting", "context length"), not surface-level keywords. "Attention mechanism modification" and "attention-based feature selection" are the same theme.
+
+If frame-lock detected:
+```
+FRAME CHECK: All avenues fall within [theme]. Reframing...
+```
+Then generate at least one avenue from a genuinely different direction. If impossible: "No out-of-frame avenue found -- [theme] may genuinely be the only productive direction."
+
+**Cold context:** When context.md has <3 tried entries, relax causal specificity to "references the stated problem or goal." Flag: "[Causal specificity: relaxed -- context.md has sparse data. Run /nr init for richer constraint enforcement.]"
+
+**Then -- avenues (2-3):**
+
+Each avenue must derive from the diagnostic hypothesis and pass the pre-generation gate.
 
 **Avenue [N]: [Name]**
 - **Mechanism**: how this directly addresses the bottleneck identified in the hypothesis
@@ -311,7 +345,7 @@ Each avenue must derive from the diagnostic hypothesis. Do not suggest approache
 
 ### For non-MODEL_DEV queries:
 
-Standard format: constraint frame → current state analysis → 2–3 avenues (mechanism / gain / risk / effort) → recommendation.
+Standard format: constraint frame → current state analysis → **pre-generation gate (same identity rules as above)** → 2-3 avenues (mechanism / gain / risk / effort) → recommendation.
 
 ---
 
@@ -341,10 +375,9 @@ A failure recorded as `Unknown` confidence is not evidence the approach is wrong
 <success_criteria>
 - For MODEL_DEV: diagnostic hypothesis stated before avenues, grounded in behavior pattern + diagnostic signals
 - Hypothesis answers "what knowledge is the model missing and why" — not "what should we try"
-- Avenues derive mechanistically from the hypothesis bottleneck
+- Avenues derive from hypothesis bottleneck and pass the pre-generation gate (no constraint violations, no closed paths, no generic advice)
 - Constraint frame separates high-confidence failures (closed) from uncertain failures (not closed)
 - Each avenue includes implementation risk with named failure modes, and a verification step
 - Questions appeared as UI elements with context-specific options (actual numbers, actual approaches)
 - Context updated: diagnostic state revised, impl. confidence captured on any new failures
-- No avenues that repeat high-confidence failures or violate hard constraints
 </success_criteria>
