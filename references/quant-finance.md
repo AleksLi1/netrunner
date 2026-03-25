@@ -110,6 +110,62 @@ When discussing taking a strategy live:
 
 **Expert intuition:** The gap between backtest and live trading is where most quant strategies die. I have seen strategies with Sharpe 4 in backtest produce Sharpe 0.3 live because: (a) execution costs were underestimated, (b) the signal decayed by the time the order reached the exchange, (c) the strategy's own trading moved the market against it. Paper trade first. Always.
 
+### Trigger: Data Pipeline Changes
+
+When the user reports changing data sources, preprocessing steps, or feature pipelines:
+
+**Reasoning chain:**
+1. **Before/after comparison:** What exactly changed in the pipeline? Map the old flow vs. new flow. Every change to data preprocessing is a potential source of contamination.
+2. **Temporal consistency check:** Does the new pipeline maintain strict point-in-time data availability? A "better" data source that backfills historical values creates survivorship bias.
+3. **Distribution shift audit:** Compare feature distributions before and after the change. If distributions shifted significantly, all prior model training is potentially invalidated — the model learned from a different data distribution.
+4. **Downstream invalidation:** Every model trained on the old pipeline must be re-evaluated. You cannot assume results transfer. The only valid approach: retrain and re-evaluate from scratch on the new pipeline.
+5. **Backfill integrity:** If the new data source provides historical data, verify it's point-in-time accurate. Many data vendors provide "as-revised" data that includes corrections made after the fact. A model trained on revised data will see patterns that weren't observable in real time.
+
+**Expert intuition:** Data pipeline changes are the most underestimated risk in quant projects. I have seen teams lose months of work because they "improved" their data source without realizing the improvement included look-ahead information. The rule is simple: any change to the data pipeline invalidates all downstream results. No exceptions. Re-evaluate everything.
+
+### Trigger: Comparing Multiple Models or Strategies
+
+When the user is selecting among multiple candidate models, strategies, or parameter configurations:
+
+**Reasoning chain:**
+1. **Multiple testing correction:** How many configurations were tested? With 100 backtests, the best will look great by chance alone. Apply Bonferroni correction or, better, use the deflated Sharpe ratio (Bailey & Lopez de Prado).
+2. **Independent vs. correlated tests:** Are the candidates truly independent, or are they variations of the same approach? 50 variations of a momentum strategy are not 50 independent tests — the effective number of independent tests is much smaller.
+3. **Out-of-sample holdout:** Was a true holdout set reserved BEFORE the comparison began? If you selected the best model on the same data used for comparison, you've overfitted to that data. The holdout set must be decided and locked before any model training begins.
+4. **Robustness over optimality:** The best-performing model is often the most overfit. Prefer the model that performs CONSISTENTLY across time periods, parameter perturbations, and market regimes — even if its average performance is lower.
+5. **Minimum performance threshold:** Don't ask "which is best?" Ask "which ones meet the minimum threshold for deployment?" If none do, the answer is "none of them" — not "the least bad one."
+6. **Ensemble vs. selection:** If multiple models show genuine but uncorrelated edges, ensemble them rather than selecting one. But ensure the correlation between strategies is genuinely low — many "different" quant strategies are secretly the same bet.
+
+**Expert intuition:** Model selection is where data snooping enters through the back door. A team tests 200 parameter combinations, picks the best one, and calls it "our strategy." They've essentially curve-fit to history. The antidote: decide your selection criteria BEFORE seeing results, apply multiple testing corrections, and always hold out a final test period that NO model has ever seen.
+
+### Trigger: Regime Shift Detection or Adaptation
+
+When the user is building regime-aware models or their strategy shows regime-dependent performance:
+
+**Reasoning chain:**
+1. **Regime definition:** How are regimes defined? If regimes are defined using the same data the model trades on (e.g., "bull market" defined by whether prices went up), there's implicit lookahead. Regimes must be defined by observable, real-time features — not by outcomes.
+2. **Regime detection lag:** Even with clean regime features, there's a detection lag. The regime has changed before your detector catches it. How does the strategy perform during transition periods? These are often the highest-risk periods.
+3. **Regime frequency:** How many examples of each regime exist in the training data? If you have 2 bear markets in 20 years of daily data, you have insufficient samples to learn bear-market behavior. The model will either overfit to those specific bears or ignore them.
+4. **Regime-conditional validation:** Validate performance WITHIN each regime separately. A strategy that's "profitable overall" might be hugely profitable in bull markets and catastrophically unprofitable in bear markets. The aggregate number hides the conditional risk.
+5. **Adaptation speed vs. stability tradeoff:** Faster regime adaptation means more false regime switches (whipsaws). Slower adaptation means delayed response to genuine regime changes. There is no free lunch here — quantify the tradeoff explicitly.
+6. **Structural vs. cyclical regimes:** Is the regime shift structural (market microstructure changed, new regulations) or cyclical (bull/bear cycle)? Cyclical regimes recur and can be modeled. Structural breaks invalidate historical models entirely.
+
+**Expert intuition:** Regime awareness is necessary but dangerous. The danger is that "regime-aware" becomes a euphemism for "I added a parameter that lets me fit bull and bear markets separately, doubling my degrees of freedom." True regime awareness means: (a) detecting regimes from independent features, (b) having enough samples per regime to learn meaningfully, (c) accepting that during transitions your model WILL underperform, and (d) having a risk management framework that doesn't blow up during regime uncertainty.
+
+### Trigger: Drawdown Analysis or Risk Assessment
+
+When evaluating strategy risk, maximum drawdown, or portfolio-level risk metrics:
+
+**Reasoning chain:**
+1. **Maximum drawdown is a random variable.** The max drawdown in your backtest is one sample from a distribution. The future max drawdown could easily be 2-3x larger. Never use historical max drawdown as your risk limit — use a confidence interval.
+2. **Drawdown path dependency:** A 20% drawdown can happen as a slow bleed (2% per month for 10 months) or a sudden crash (20% in 3 days). These are completely different risk profiles requiring different responses. Characterize the drawdown distribution, not just the magnitude.
+3. **Correlation in stress:** During market stress, all correlations go to 1. A "diversified" portfolio of quant strategies will draw down simultaneously during a crisis. Stress-test with correlated drawdowns, not independent ones.
+4. **Recovery time:** Max drawdown without recovery time is incomplete. A 20% drawdown with 3-month recovery is manageable. A 20% drawdown with 18-month recovery may be career-ending. Track time-to-recovery alongside drawdown magnitude.
+5. **Tail risk vs. average risk:** Sharpe ratio measures average risk-adjusted return. It says nothing about tails. A strategy with Sharpe 2.0 that occasionally loses 50% in a week is not the same as Sharpe 2.0 with max daily loss of 3%. Use CVaR/Expected Shortfall alongside Sharpe.
+6. **Leverage interaction:** Drawdown severity is a function of leverage. A strategy that "only" draws down 10% at 5x leverage is actually drawing down 50% on equity. Report drawdowns on both levered and unlevered basis.
+7. **Psychological sustainability:** Even a mathematically sound strategy fails if the operator can't stomach the drawdowns. A 40% drawdown that "should" recover is still a 40% drawdown. Will the fund's investors allow it? Will the trader sleep through it?
+
+**Expert intuition:** Drawdown analysis is where backtests are most misleading. In a backtest, you know the strategy recovers because you can see the future. In live trading, during a drawdown, you don't know if it's a temporary dip or a permanent regime break. The question isn't "what was the max drawdown?" but "during the drawdown, would I have had enough conviction to stay in?" If the answer is no, the strategy is unsuitable regardless of its long-term Sharpe.
+
 ## Common Pitfall Categories
 
 These activate deeper investigation when detected:
