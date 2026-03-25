@@ -26,7 +26,10 @@ After loading CONTEXT.md, detect the project domain and activate the appropriate
 
 **Quantitative Finance / Trading** — activate when CONTEXT.md contains: Sharpe, P&L, returns, alpha, drawdown, backtest, walk-forward, regime, lookahead, leakage, OHLCV, orderbook, slippage, trading, direction accuracy, hit rate, or Market Structure / Strategy Profile sections.
 
-When quant is detected, this verifier applies **quantitative audit rigor:**
+When quant is detected:
+- Load `references/quant-code-patterns.md` — use the anti-pattern summary table to scan committed code for temporal contamination patterns (`.rolling()` without `.shift(1)`, `StandardScaler` before split, `shuffle=True`, etc.)
+- Apply **quantitative audit rigor:**
+
 1. **Lookahead bias scan:** Verify no feature, label, or evaluation metric uses data from after the prediction timestamp. Trace feature pipelines backward from model input to raw data source. Flag any `actual[i-k]` for k < prediction_horizon.
 2. **Validation integrity check:** Confirm walk-forward splits are truly temporal (no shuffling, no random splits on time series). Verify purging and embargo gaps prevent data leakage through autocorrelation.
 3. **Result skepticism:** Any metric improvement must be verified across: (a) multiple time periods, (b) multiple market regimes, (c) with and without transaction costs. A result that only holds in one regime or disappears with costs is FAIL.
