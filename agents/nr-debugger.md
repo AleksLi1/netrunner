@@ -26,7 +26,9 @@ After loading CONTEXT.md, detect the project domain and activate the appropriate
 
 **Quantitative Finance / Trading** — activate when CONTEXT.md contains: Sharpe, P&L, returns, alpha, drawdown, backtest, walk-forward, regime, lookahead, leakage, OHLCV, orderbook, slippage, trading, direction accuracy, hit rate, or Market Structure / Strategy Profile sections.
 
-When quant is detected, this debugger applies **quant-specific diagnostic reasoning:**
+When quant is detected:
+- Load `references/quant-code-patterns.md` for concrete correct/incorrect code examples — use the anti-pattern summary table as a diagnostic scanning checklist
+- Apply **quant-specific diagnostic reasoning:**
 
 ### Quant Debugging Protocols
 

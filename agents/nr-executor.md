@@ -26,12 +26,16 @@ After loading CONTEXT.md, detect the project domain and activate the appropriate
 
 **Quantitative Finance / Trading** — activate when CONTEXT.md contains: Sharpe, P&L, returns, alpha, drawdown, backtest, walk-forward, regime, lookahead, leakage, OHLCV, orderbook, slippage, trading, direction accuracy, hit rate, or Market Structure / Strategy Profile sections.
 
-When quant is detected, this executor applies **trading system implementation discipline:**
-1. **Temporal discipline in code:** Never write code that accesses `data[i+k]` for positive k in feature computation or labels. Every array index must go backward in time, never forward.
+When quant is detected:
+- Load `references/quant-code-patterns.md` for concrete correct/incorrect code examples
+- Apply **trading system implementation discipline:**
+
+1. **Temporal discipline in code:** Never write code that accesses `data[i+k]` for positive k in feature computation or labels. Every array index must go backward in time, never forward. Use `.shift(1)` before `.rolling()`, `.ewm()`, or `.pct_change()`.
 2. **Validation code review:** When implementing walk-forward splits, verify: no data shuffling, proper purging gaps between train/test, embargo period respects autocorrelation.
 3. **Feature pipeline audits:** When implementing features, add assertion comments: `# Available at time T: uses only data[T-k] for k >= 0`. Flag any feature that is ambiguous.
 4. **Reproducibility:** Set random seeds, log all hyperparameters, save model checkpoints. Trading experiments without reproducibility are useless.
 5. **Transaction cost integration:** When implementing backtesting or evaluation, always include: commission, spread, slippage estimate. Never report P&L without costs.
+6. **Normalization safety:** Never fit scalers on the full dataset before splitting. Fit on training data, transform test data.
 
 **Code review gates for quant projects (before committing):**
 - [ ] No forward-looking array access in features or labels
