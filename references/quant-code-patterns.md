@@ -392,6 +392,555 @@ experiment = {
 
 ---
 
+## Pattern 11: Feature Rolling Statistics with Temporal Guard
+
+Rolling statistics are the most common feature type — and the most common source of lookahead.
+
+**WRONG — current bar included in rolling window:**
+```python
+df['ma_20'] = df['close'].rolling(20).mean()
+df['vol_20'] = df['close'].rolling(20).std()
+df['skew_20'] = df['close'].rolling(20).skew()
+```
+
+**CORRECT — shift before roll:**
+```python
+df['ma_20'] = df['close'].shift(1).rolling(20).mean()
+df['vol_20'] = df['close'].shift(1).rolling(20).std()
+df['skew_20'] = df['close'].shift(1).rolling(20).skew()
+
+# Also exclude warm-up period from training/evaluation
+df = df.iloc[21:]  # 1 shift + 20 rolling = 21 bars warm-up
+```
+
+**Why warm-up matters:** The first 20 rows of a rolling(20) computation use fewer than 20 bars (partial windows). These are unreliable features and should be excluded. NaN-dropping is not enough — even rows 2-19 have noisy estimates.
+
+---
+
+## Pattern 12: Cross-Sectional Normalization
+
+When ranking or normalizing across multiple assets, survivorship and timing matter.
+
+**WRONG — normalize across all assets including future:**
+```python
+# At each timestamp, normalize across all assets — but which assets?
+# If you use the current universe, you include assets that may not have existed then
+def cross_sectional_zscore(df_wide):
+    return (df_wide - df_wide.mean(axis=1).values.reshape(-1,1)) / df_wide.std(axis=1).values.reshape(-1,1)
+```
+
+**CORRECT — normalize only on assets available at that timestamp:**
+```python
+def safe_cross_sectional_zscore(df_wide, listing_dates):
+    """Only include assets that were listed/trading at each timestamp."""
+    result = df_wide.copy()
+    for idx in df_wide.index:
+        # Only include assets that were available at this point in time
+        available = [col for col in df_wide.columns
+                     if listing_dates.get(col, pd.Timestamp.max) <= idx]
+        row = df_wide.loc[idx, available]
+        if len(row.dropna()) >= 5:  # minimum assets for meaningful z-score
+            mean, std = row.mean(), row.std()
+            if std > 0:
+                result.loc[idx, available] = (row - mean) / std
+            else:
+                result.loc[idx, available] = 0
+        else:
+            result.loc[idx] = np.nan
+    return result
+```
+
+**Why this matters:** If your cross-sectional normalization includes Tesla in 2005 (it wasn't public until 2010), you're creating a fantasy universe. Similarly, including delisted companies in "current" rankings introduces survivorship bias.
+
+---
+
+## Pattern 13: Sharpe Ratio Calculation
+
+The most reported metric in quant finance — and the most commonly miscalculated.
+
+**WRONG — ignoring autocorrelation and using wrong annualization:**
+```python
+# Common but flawed
+sharpe = returns.mean() / returns.std() * np.sqrt(252)
+```
+
+**WRONG — annualizing daily Sharpe with 365 instead of 252:**
+```python
+sharpe = returns.mean() / returns.std() * np.sqrt(365)  # WRONG: 252 trading days, not 365
+```
+
+**CORRECT — with Newey-West adjustment for autocorrelation:**
+```python
+import statsmodels.api as sm
+
+def sharpe_ratio_adjusted(returns, risk_free_rate=0.0, freq=252):
+    """Sharpe ratio with Newey-West correction for autocorrelated returns.
+
+    Autocorrelated returns inflate the naive Sharpe estimate.
+    The correction adjusts the standard deviation estimate.
+    """
+    excess = returns - risk_free_rate / freq
+    n = len(excess)
+    mean_r = excess.mean()
+
+    # Newey-West bandwidth selection (common rule of thumb)
+    max_lag = int(np.ceil(4 * (n / 100) ** (2/9)))
+
+    # Newey-West adjusted variance
+    nw = sm.OLS(excess, np.ones(n)).fit(cov_type='HAC',
+        cov_kwds={'maxlags': max_lag})
+    adjusted_se = nw.bse[0]
+    adjusted_std = adjusted_se * np.sqrt(n)
+
+    sharpe = mean_r / adjusted_std * np.sqrt(freq)
+    return sharpe
+
+# Also: bootstrap confidence interval
+def sharpe_ci(returns, n_bootstrap=10000, ci=0.95, freq=252):
+    """Bootstrap confidence interval for Sharpe ratio."""
+    sharpes = []
+    n = len(returns)
+    for _ in range(n_bootstrap):
+        sample = np.random.choice(returns, size=n, replace=True)
+        s = sample.mean() / sample.std() * np.sqrt(freq)
+        sharpes.append(s)
+    lower = np.percentile(sharpes, (1 - ci) / 2 * 100)
+    upper = np.percentile(sharpes, (1 + ci) / 2 * 100)
+    return lower, upper
+```
+
+**Key insight:** A Sharpe of 1.5 with a confidence interval of [0.3, 2.7] is NOT a reliable strategy — the true Sharpe could easily be below 1.0. Always report CIs.
+
+---
+
+## Pattern 14: Transaction Cost Modeling
+
+A strategy's profitability is entirely dependent on cost assumptions.
+
+**WRONG — fixed percentage cost:**
+```python
+cost_per_trade = 0.001  # 10 bps flat — grossly oversimplified
+net_return = gross_return - cost_per_trade * abs(position_change)
+```
+
+**CORRECT — component-based cost model:**
+```python
+def estimate_transaction_cost(
+    price, quantity, spread_bps, adv,
+    volatility, commission_per_share=0.005
+):
+    """Realistic transaction cost with spread + impact + commission.
+
+    Args:
+        price: Execution price
+        quantity: Number of shares/units
+        spread_bps: Bid-ask spread in basis points
+        adv: Average daily volume (shares/units)
+        volatility: Daily return volatility
+        commission_per_share: Broker commission
+    """
+    notional = price * abs(quantity)
+    participation_rate = abs(quantity) / adv
+
+    # 1. Half-spread cost (crossing the bid-ask)
+    spread_cost = notional * (spread_bps / 2) / 10000
+
+    # 2. Market impact (square root model: Almgren-Chriss)
+    impact_cost = notional * volatility * np.sqrt(participation_rate)
+
+    # 3. Commission
+    commission = abs(quantity) * commission_per_share
+
+    total = spread_cost + impact_cost + commission
+    return total, {
+        'spread': spread_cost, 'impact': impact_cost,
+        'commission': commission, 'participation_rate': participation_rate
+    }
+```
+
+**Rule:** If your strategy trades frequently and `participation_rate > 0.01` (1% of daily volume), market impact dominates. At `> 0.05`, the strategy is likely capacity-constrained.
+
+---
+
+## Pattern 15: Position Sizing
+
+Equal-weight portfolios ignore risk — volatility-adjusted sizing is the minimum bar.
+
+**WRONG — equal weight:**
+```python
+# Every position gets equal capital regardless of risk
+position_size = total_capital / n_positions
+```
+
+**CORRECT — volatility-adjusted (inverse volatility weighting):**
+```python
+def volatility_adjusted_size(
+    signals, returns_history, target_vol=0.10, lookback=60
+):
+    """Size positions inversely proportional to their volatility.
+
+    Args:
+        signals: dict of {asset: signal_strength}
+        returns_history: DataFrame of asset returns (shifted — no current bar!)
+        target_vol: Target portfolio annualized volatility
+        lookback: Volatility estimation window
+    """
+    # Estimate volatility using only PAST data
+    vols = returns_history.iloc[-lookback:].std() * np.sqrt(252)
+
+    # Inverse volatility weights
+    raw_weights = {}
+    for asset, signal in signals.items():
+        if asset in vols.index and vols[asset] > 0:
+            raw_weights[asset] = signal / vols[asset]
+
+    # Normalize to target volatility
+    total = sum(abs(w) for w in raw_weights.values())
+    if total > 0:
+        scale = target_vol / (total * np.mean(list(vols[list(signals.keys())])))
+        weights = {a: w * scale for a, w in raw_weights.items()}
+    else:
+        weights = {a: 0 for a in signals}
+
+    return weights
+```
+
+**Advanced:** Kelly criterion (theoretical optimum) is aggressive. Use half-Kelly or fractional Kelly (0.25-0.5) in practice. Full Kelly has too much variance.
+
+---
+
+## Pattern 16: Walk-Forward with Purging and Embargo
+
+The gold standard for time series cross-validation. Pattern 3 showed basic walk-forward — this adds proper purging and embargo.
+
+**WRONG — adjacent train/test windows:**
+```python
+# No gap between train and test — autocorrelation leaks information
+for i in range(n_folds):
+    train_end = fold_size * (i + 1)
+    test_start = train_end  # WRONG: no gap
+    test_end = test_start + fold_size
+```
+
+**CORRECT — with purge gap and embargo:**
+```python
+def walk_forward_purged(df, n_splits=5, max_train_size=None,
+                        purge_bars=60, embargo_pct=0.01):
+    """Walk-forward CV with purging and embargo.
+
+    Purge: removes training samples whose label period overlaps with
+           the test set's feature lookback period.
+    Embargo: additional buffer after purge to handle autocorrelation.
+
+    Args:
+        purge_bars: Number of bars to purge before each test set.
+                    Should equal max(feature_lookback, label_horizon).
+        embargo_pct: Fraction of test set size to use as embargo.
+    """
+    n = len(df)
+    test_size = n // (n_splits + 1)
+    embargo_bars = max(1, int(test_size * embargo_pct))
+
+    for i in range(n_splits):
+        test_start = n - (n_splits - i) * test_size
+        test_end = test_start + test_size
+
+        # Purge: remove training samples near the test boundary
+        train_end = test_start - purge_bars
+
+        # Embargo: skip samples after test set (for expanding window)
+        embargo_end = test_end + embargo_bars
+
+        if max_train_size:
+            train_start = max(0, train_end - max_train_size)
+        else:
+            train_start = 0
+
+        if train_end <= train_start:
+            continue  # Skip if insufficient training data
+
+        train_idx = list(range(train_start, train_end))
+        test_idx = list(range(test_start, test_end))
+
+        yield train_idx, test_idx
+```
+
+**Purge gap calculation:** `purge_bars = max(feature_lookback_period, label_forward_horizon)`. If your features use 60 bars of history AND your label is 5-bar forward return, `purge_bars = 60`.
+
+---
+
+## Pattern 17: Feature Importance with Temporal Integrity
+
+Feature importance must respect temporal structure — single-split importance is misleading.
+
+**WRONG — single-split permutation importance:**
+```python
+from sklearn.inspection import permutation_importance
+# Computed on a SINGLE train/test split — highly unstable
+result = permutation_importance(model, X_test, y_test, n_repeats=10)
+important_features = result.importances_mean > 0
+```
+
+**CORRECT — walk-forward averaged permutation importance:**
+```python
+def temporal_permutation_importance(model_fn, X, y, n_splits=5,
+                                    purge_bars=60, n_repeats=5):
+    """Permutation importance averaged across walk-forward folds.
+
+    Stable estimates require multiple temporal folds. A feature
+    important in only 1 of 5 folds is likely noise.
+    """
+    importance_per_fold = []
+
+    for train_idx, test_idx in walk_forward_purged(
+        X, n_splits=n_splits, purge_bars=purge_bars
+    ):
+        model = model_fn()
+        model.fit(X.iloc[train_idx], y.iloc[train_idx])
+
+        # Base score
+        base_score = model.score(X.iloc[test_idx], y.iloc[test_idx])
+
+        # Permute each feature
+        importances = {}
+        for col in X.columns:
+            scores = []
+            for _ in range(n_repeats):
+                X_perm = X.iloc[test_idx].copy()
+                X_perm[col] = np.random.permutation(X_perm[col].values)
+                scores.append(model.score(X_perm, y.iloc[test_idx]))
+            importances[col] = base_score - np.mean(scores)
+
+        importance_per_fold.append(importances)
+
+    # Average across folds — also compute stability
+    result = pd.DataFrame(importance_per_fold)
+    return pd.DataFrame({
+        'mean_importance': result.mean(),
+        'std_importance': result.std(),
+        'stability': (result > 0).mean(),  # Fraction of folds where feature was important
+    }).sort_values('mean_importance', ascending=False)
+```
+
+**Stability column is key:** A feature with high mean importance but `stability < 0.6` is unreliable across time periods.
+
+---
+
+## Pattern 18: Label Construction
+
+Labels define what the model learns. Off-by-one errors here corrupt everything.
+
+**WRONG — ambiguous forward return:**
+```python
+# What does this actually predict? Return from current close to next close.
+# If features include current close, there's shared information.
+df['label'] = (df['close'].shift(-1) > df['close']).astype(int)
+```
+
+**CORRECT — explicit forward return with clear temporal boundary:**
+```python
+def construct_labels(df, forward_bars=5, threshold_bps=0):
+    """Construct labels with explicit temporal boundary documentation.
+
+    Timeline:
+    - Features at time T use data from T-1 and earlier (shift(1) applied)
+    - Label at time T = forward return from T to T+forward_bars
+    - Gap between feature data and label start = 1 bar (current bar)
+
+    Args:
+        forward_bars: How many bars ahead to measure return
+        threshold_bps: Minimum return in bps for positive label (filters noise)
+    """
+    # Forward return: close[T + forward_bars] / close[T] - 1
+    forward_return = df['close'].shift(-forward_bars) / df['close'] - 1
+
+    if threshold_bps > 0:
+        threshold = threshold_bps / 10000
+        labels = pd.Series(0, index=df.index)  # 0 = no trade
+        labels[forward_return > threshold] = 1   # long
+        labels[forward_return < -threshold] = -1  # short
+    else:
+        labels = (forward_return > 0).astype(int)
+
+    # Drop last forward_bars rows (no valid label)
+    labels.iloc[-forward_bars:] = np.nan
+
+    return labels, forward_return
+
+# CRITICAL: verify no overlap
+# Features use data[T-1] and earlier
+# Labels use data[T] to data[T+forward_bars]
+# The current bar close[T] is in the label but NOT in features
+# This is correct: we predict what close[T] will lead to
+```
+
+**Threshold tuning:** Using `threshold_bps=0` creates 50/50 labels dominated by noise. A threshold of 5-20 bps (depending on frequency) filters out noise returns and creates more learnable labels.
+
+---
+
+## Pattern 19: Regime Detection
+
+Regime models must be fit without future data — a subtle but critical requirement.
+
+**WRONG — HMM fit on full dataset:**
+```python
+from hmmlearn import hmm
+
+# Fitting on ALL data means regime labels at time T use future information
+model = hmm.GaussianHMM(n_components=3)
+model.fit(returns.values.reshape(-1, 1))
+regimes = model.predict(returns.values.reshape(-1, 1))
+```
+
+**CORRECT — expanding window HMM refit:**
+```python
+def online_regime_detection(returns, n_regimes=3, min_history=252):
+    """Regime detection using only past data at each point.
+
+    At each timestamp T, fit HMM on returns[0:T] and predict regime at T.
+    This is computationally expensive but temporally correct.
+    """
+    regimes = pd.Series(np.nan, index=returns.index)
+
+    for t in range(min_history, len(returns)):
+        try:
+            model = hmm.GaussianHMM(
+                n_components=n_regimes,
+                covariance_type="full",
+                n_iter=100,
+                random_state=42
+            )
+            history = returns.iloc[:t].values.reshape(-1, 1)
+            model.fit(history)
+
+            # Predict current regime using only past data
+            regimes.iloc[t] = model.predict(history)[-1]
+        except Exception:
+            regimes.iloc[t] = regimes.iloc[t-1]  # Carry forward on failure
+
+    return regimes
+
+# Optimization: refit every N bars instead of every bar
+def periodic_regime_detection(returns, n_regimes=3, refit_every=20, min_history=252):
+    """Refit every N bars for computational efficiency."""
+    regimes = pd.Series(np.nan, index=returns.index)
+    current_model = None
+
+    for t in range(min_history, len(returns)):
+        if t % refit_every == 0 or current_model is None:
+            try:
+                current_model = hmm.GaussianHMM(
+                    n_components=n_regimes, n_iter=100, random_state=42
+                )
+                current_model.fit(returns.iloc[:t].values.reshape(-1, 1))
+            except Exception:
+                pass
+
+        if current_model is not None:
+            regimes.iloc[t] = current_model.predict(
+                returns.iloc[max(0,t-252):t].values.reshape(-1, 1)
+            )[-1]
+
+    return regimes
+```
+
+**Why full-dataset HMM is wrong:** If the HMM at time T "knows" about a 2020 crash that hasn't happened yet (from fitting on 2015-2025), the regime label at 2019 will be influenced by future crash data. This leaks the timing of regime transitions.
+
+---
+
+## Pattern 20: Ensemble with Temporal Cross-Validation
+
+Stacking ensembles must respect temporal ordering at every level.
+
+**WRONG — standard k-fold stacking:**
+```python
+from sklearn.model_selection import cross_val_predict, KFold
+
+# Inner CV shuffles time — stacked predictions use future information
+kf = KFold(n_splits=5, shuffle=True)
+meta_features = cross_val_predict(base_model, X, y, cv=kf)
+meta_model.fit(meta_features, y)
+```
+
+**CORRECT — temporal stacking with non-overlapping folds:**
+```python
+def temporal_stacking(base_models, X, y, n_splits=5, purge_bars=60):
+    """Stacking ensemble that respects temporal ordering.
+
+    Level 1: Each base model generates OOS predictions via walk-forward.
+    Level 2: Meta-learner trains on OOS predictions (also walk-forward).
+    """
+    n = len(X)
+    meta_features = pd.DataFrame(index=X.index)
+
+    # Level 1: Generate OOS predictions for each base model
+    for name, model_fn in base_models.items():
+        oos_preds = pd.Series(np.nan, index=X.index)
+
+        for train_idx, test_idx in walk_forward_purged(
+            X, n_splits=n_splits, purge_bars=purge_bars
+        ):
+            model = model_fn()
+            model.fit(X.iloc[train_idx], y.iloc[train_idx])
+            oos_preds.iloc[test_idx] = model.predict(X.iloc[test_idx])
+
+        meta_features[name] = oos_preds
+
+    # Drop NaN rows (from first fold where no OOS predictions exist)
+    valid_idx = meta_features.dropna().index
+    meta_X = meta_features.loc[valid_idx]
+    meta_y = y.loc[valid_idx]
+
+    # Level 2: Train meta-learner (also walk-forward!)
+    # Simple approach: use second half of OOS predictions for meta-training
+    split = len(meta_X) // 2
+    meta_train_X = meta_X.iloc[:split]
+    meta_train_y = meta_y.iloc[:split]
+    meta_test_X = meta_X.iloc[split:]
+    meta_test_y = meta_y.iloc[split:]
+
+    from sklearn.linear_model import Ridge
+    meta_model = Ridge(alpha=1.0)  # Simple meta-learner — resist the urge to overfit
+    meta_model.fit(meta_train_X, meta_train_y)
+
+    return meta_model, meta_features
+
+# CRITICAL: The meta-learner must NEVER see the same data that base models were trained on.
+# Walk-forward ensures base model OOS predictions are truly out-of-sample.
+# A simple average of base model predictions often beats a learned meta-learner.
+```
+
+**Ensemble diversity:** If all base models are LightGBM with slightly different hyperparameters, the ensemble adds nothing. Combine structurally different models: tree-based + linear + neural network.
+
+---
+
+## Extended Anti-Pattern Summary
+
+| Anti-Pattern | What Goes Wrong | Quick Check |
+|---|---|---|
+| Rolling window includes current bar | Feature leaks current price | Look for `.rolling()` without `.shift(1)` |
+| Global normalization | Future distribution leaked | Look for `StandardScaler` before `train_test_split` |
+| Random train/test split | Temporal leakage, inflated metrics | Look for `shuffle=True` on time series |
+| EMA on unshifted data | Current bar in feature | Look for `.ewm()` without `.shift(1)` |
+| Feature selection on full data | Data snooping, selection bias | Look for `feature_importances_` computed once on all data |
+| Hyperparameter tuning on test set | Backtest overfitting | Count how many configs were evaluated on test |
+| Forward-fill without publication delay | Future data via merge | Look for `.fillna(method='ffill')` after joins |
+| Mid-price execution assumption | Costs ignored, fantasy P&L | Look for P&L computed from `close` price only |
+| Missing random seeds | Non-reproducible results | Look for `random.seed` / `np.random.seed` / `torch.manual_seed` |
+| Feature warm-up excluded | Unreliable partial-window features | Check if first N rows are dropped for rolling(N) |
+| Cross-sectional survivorship | Future universe knowledge | Check if normalization universe changes over time |
+| Sharpe without autocorrelation adjustment | Inflated risk-adjusted returns | Look for raw `mean/std * sqrt(252)` |
+| Fixed cost model | Understated execution costs | Look for flat bps instead of spread+impact+commission |
+| Equal-weight positions | Risk-ignorant sizing | Check if vol-adjusted sizing is implemented |
+| No purge/embargo in walk-forward | Train-test info leakage | Check gap between train_end and test_start |
+| Single-split feature importance | Unstable importance estimates | Check if importance averaged across folds |
+| Ambiguous label construction | Off-by-one temporal errors | Verify shift direction and forward horizon |
+| Full-dataset regime detection | Future regime information leaked | Check if HMM/changepoint uses expanding window |
+| K-fold stacking | Temporal leakage in ensemble | Look for `KFold(shuffle=True)` in stacking |
+| Simple average as "ensemble" | No diversity benefit | Check if base models are structurally different |
+
+---
+
 ## When to Load This Reference
 
 This reference should be loaded by:
@@ -399,3 +948,4 @@ This reference should be loaded by:
 - **nr-debugger** when investigating LOOKAHEAD_CONTAMINATION or LEAKAGE issues — use as diagnostic checklist
 - **nr-verifier** when verifying quant phase completion — use patterns to scan for anti-patterns in committed code
 - **nr-mapper** (concerns focus) when flagging temporal risks — use anti-pattern summary to identify code smells
+- **nr-quant-auditor** when performing automated code scanning — use all 20 patterns as detection rules

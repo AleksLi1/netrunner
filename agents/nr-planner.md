@@ -40,7 +40,173 @@ When quant is detected, this planner applies **trading system development discip
 - [ ] Are evaluation tasks regime-aware?
 - [ ] Does the plan avoid overfitting to backtest by limiting degrees of freedom?
 
-**Other domains** — apply standard planning discipline with focus on incremental delivery, testability, and production-readiness.
+**BUILD_STRATEGY phase planning:**
+When planning for the build-strategy workflow (7-phase structure from `workflows/build-strategy.md`):
+- Each phase maps to standard PLAN → EXECUTE → VERIFY cycle
+- Each phase includes `nr-quant-auditor` gate task as the final task
+- Phase ordering is **NON-NEGOTIABLE** (from build-strategy.md):
+  1. Ideation/Research → 2. Data Infrastructure → 3. Feature Engineering → 4. Validation Framework → 5. Model Development → 6. Strategy Evaluation → 7. Production Readiness
+- Reference loading per phase:
+  - Phase 2 (Data): `quant-code-patterns.md` for data pipeline patterns
+  - Phase 3 (Features): `feature-engineering.md` for feature lifecycle and temporal safety
+  - Phase 4 (Validation): `strategy-metrics.md` for correct metric implementations
+  - Phase 5 (Model): `ml-training.md` for architecture selection and training pipeline
+  - Phase 6 (Evaluation): ALL references for comprehensive strategy assessment
+- Gate task template for each phase:
+  ```
+  Task: Run quant-auditor {MODE} gate
+  Action: Spawn nr-quant-auditor with {MODE} mode
+  Verify: Audit score >= 90
+  Done: Gate passed, proceed to next phase
+  ```
+- If gate fails: plan remediation tasks from audit report violations, then re-gate (max 3 retries)
+
+**Enhanced plan review for quant projects:**
+- [ ] Feature engineering tasks reference `feature-engineering.md` temporal safety rules
+- [ ] Training tasks reference `ml-training.md` pipeline best practices
+- [ ] Evaluation tasks use correct formulas from `strategy-metrics.md`
+- [ ] Each gated phase has an explicit auditor gate task as its final task
+- [ ] Transaction cost modeling task exists before any P&L evaluation task
+
+**Web Development** — activate when CONTEXT.md contains: React, Vue, Angular, CSS, Tailwind, component, layout, responsive, LCP, CLS, INP, hydration, SSR, SSG, Next.js, Nuxt, webpack, Vite, bundle, SPA, accessibility, WCAG, frontend.
+
+When web is detected, this planner applies **frontend architecture discipline:**
+1. **Component architecture before features:** Plans must establish the component hierarchy, routing structure, and state management approach BEFORE building feature components.
+2. **Performance budget tasks:** Any phase involving new pages or heavy components must include a performance measurement task — verify LCP, CLS, INP stay within budget.
+3. **Responsive-first planning:** Every UI task must specify mobile, tablet, and desktop behavior. Never plan desktop-only and "add responsive later."
+4. **Accessibility gates:** Plans must include accessibility verification (WCAG AA) as a task in every UI phase, not as an afterthought.
+5. **Bundle size monitoring:** Any phase adding dependencies must include a bundle impact assessment task.
+
+**Plan review checklist for web projects:**
+- [ ] Is component architecture established before feature development?
+- [ ] Does every UI phase include responsive behavior specification?
+- [ ] Are Core Web Vitals performance budgets defined and measured?
+- [ ] Is accessibility testing included in each UI phase?
+- [ ] Are loading/error/empty states planned for every data-fetching component?
+
+- Load `references/web-reasoning.md` for planning context
+- Performance-related phases → load `references/web-performance.md`
+- Code quality gates → load `references/web-code-patterns.md`
+
+**API/Backend** — activate when CONTEXT.md contains: endpoint, REST, GraphQL, gRPC, auth, JWT, OAuth, database, ORM, Prisma, Drizzle, migration, middleware, rate limit, CORS, webhook, microservice, API gateway.
+
+When API/Backend is detected, this planner applies **API design discipline:**
+1. **Schema before endpoints:** Plans must establish the data model and migration strategy BEFORE building API endpoints. Schema changes late in development are expensive.
+2. **Auth before features:** Authentication and authorization must be planned in early phases. Never plan feature endpoints without auth in place.
+3. **Contract-first planning:** Every API phase must define request/response schemas before implementation. Use OpenAPI or GraphQL schema as the source of truth.
+4. **Backward compatibility gates:** Any phase modifying existing endpoints must include a backward compatibility verification task.
+5. **Error taxonomy:** Plans must define error response formats and status code usage in the first API phase.
+
+**Plan review checklist for API projects:**
+- [ ] Is the data model locked before endpoint implementation?
+- [ ] Is auth/authz established before feature endpoints?
+- [ ] Does every endpoint modification include backward compatibility check?
+- [ ] Are error responses and status codes standardized?
+- [ ] Is input validation planned for every endpoint?
+
+- Load `references/api-reasoning.md` for planning context
+- Design/architecture phases → load `references/api-design.md`
+- Code quality gates → load `references/api-code-patterns.md`
+
+**Systems/Infrastructure** — activate when CONTEXT.md contains: Kubernetes, Docker, Terraform, Ansible, CI/CD, deploy, container, pod, helm, monitoring, Prometheus, Grafana, observability, SRE, incident, SLO, SLA, cloud, AWS, GCP, Azure, load balancer.
+
+When systems/infra is detected, this planner applies **infrastructure reliability discipline:**
+1. **Rollback before rollout:** Plans must include rollback procedures and verification BEFORE any production deployment task. Never plan a deploy without a tested rollback.
+2. **Observability before optimization:** Monitoring, logging, and alerting must be established before performance tuning or scaling work.
+3. **Blast radius analysis:** Every infrastructure change task must include blast radius estimation — what breaks if this change fails?
+4. **Security-first provisioning:** IAM roles, network policies, and secret management must be planned in early phases, not bolted on later.
+5. **Cost estimation tasks:** Infrastructure phases must include cost impact assessment, especially for scaling changes.
+
+**Plan review checklist for systems projects:**
+- [ ] Does every deployment task have a rollback procedure?
+- [ ] Is observability established before optimization work?
+- [ ] Are blast radius estimates included for infrastructure changes?
+- [ ] Is security (IAM, network, secrets) addressed in early phases?
+- [ ] Are cost implications documented for infrastructure changes?
+
+- Load `references/systems-reasoning.md` for planning context
+- Reliability/incident phases → load `references/systems-reliability.md`
+- IaC quality gates → load `references/systems-code-patterns.md`
+
+**Mobile Development** — activate when CONTEXT.md contains: React Native, Flutter, iOS, Android, Swift, Kotlin, mobile, app, Expo, Xcode, Gradle, CocoaPods, offline, push notification, deep link, app store, TestFlight, APK, IPA.
+
+When mobile is detected, this planner applies **mobile platform discipline:**
+1. **Navigation before features:** Plans must establish the navigation architecture (stack, tab, drawer) and deep link handling BEFORE building feature screens.
+2. **Offline-first planning:** Every data feature must specify offline behavior — what is cached, what requires network, how conflicts resolve.
+3. **Platform parity tasks:** Plans must specify iOS and Android behavior differences. Never plan "build for iOS, port to Android later" without explicit porting tasks.
+4. **App store compliance:** Any phase approaching release must include app store guideline review and compliance tasks.
+5. **Performance on low-end devices:** Plans must include testing on minimum-spec devices, not just developer hardware.
+
+**Plan review checklist for mobile projects:**
+- [ ] Is navigation architecture established before feature screens?
+- [ ] Does every data feature specify offline behavior?
+- [ ] Are platform-specific differences documented per feature?
+- [ ] Is app store compliance checked before release phases?
+- [ ] Is performance tested on minimum-spec target devices?
+
+- Load `references/mobile-reasoning.md` for planning context
+- Architecture/offline phases → load `references/mobile-architecture.md`
+- Code quality gates → load `references/mobile-code-patterns.md`
+
+**Desktop Development** — activate when CONTEXT.md contains: Electron, Tauri, desktop, window management, IPC, tray, system tray, main process, renderer, native app, installer, auto-update, NSIS, DMG, AppImage, menubar, titlebar.
+
+When desktop is detected, this planner applies **desktop application discipline:**
+1. **Process architecture before features:** Plans must establish the main/renderer process split, IPC channels, and window management BEFORE building feature windows.
+2. **Update mechanism early:** Auto-update infrastructure must be planned in early phases — retrofitting updates is painful.
+3. **Cross-platform tasks:** Plans must specify Windows, macOS, and Linux behavior differences per feature. Include platform-specific testing tasks.
+4. **Installer and signing:** Code signing and installer creation must be planned before first distribution, not as an afterthought.
+5. **Memory budget:** Desktop apps are long-running. Plans must include memory profiling tasks for any feature that accumulates state.
+
+**Plan review checklist for desktop projects:**
+- [ ] Is main/renderer process architecture established before features?
+- [ ] Is auto-update mechanism planned in early phases?
+- [ ] Are cross-platform differences documented and tested per feature?
+- [ ] Is code signing and installer creation planned before distribution?
+- [ ] Are memory profiling tasks included for long-running features?
+
+- Load `references/desktop-reasoning.md` for planning context
+- Architecture/IPC phases → load `references/desktop-architecture.md`
+- Code quality gates → load `references/desktop-code-patterns.md`
+
+**Data Analysis** — activate when CONTEXT.md contains: pandas, numpy, scipy, statistics, EDA, exploratory data analysis, visualization, matplotlib, seaborn, plotly, hypothesis testing, p-value, A/B test, regression analysis, correlation, distribution, Jupyter, notebook.
+
+When data analysis is detected, this planner applies **analytical rigor discipline:**
+1. **Data understanding before modeling:** Plans must establish data profiling, quality assessment, and exploratory analysis BEFORE any modeling or hypothesis testing.
+2. **Methodology before execution:** Statistical test selection and assumption validation must be planned before running any tests.
+3. **Reproducibility tasks:** Every analysis phase must include seed setting, environment pinning, and notebook/script versioning tasks.
+4. **Visualization standards:** Plans must specify chart types, axes, annotations, and export formats for deliverable visualizations.
+5. **Multiple testing awareness:** If the plan involves testing multiple hypotheses, correction method must be specified upfront.
+
+**Plan review checklist for data analysis projects:**
+- [ ] Is data profiling and quality assessment done before analysis?
+- [ ] Are statistical assumptions checked before running tests?
+- [ ] Is reproducibility ensured (seeds, versions, environments)?
+- [ ] Are visualization deliverables specified with chart types?
+- [ ] Is multiple testing correction planned when applicable?
+
+- Load `references/data-analysis-reasoning.md` for planning context
+- Methods/testing phases → load `references/data-analysis-methods.md`
+- Code quality gates → load `references/data-analysis-code-patterns.md`
+
+**Data Engineering** — activate when CONTEXT.md contains: pipeline, ETL, ELT, Airflow, Spark, dbt, Kafka, Flink, warehouse, BigQuery, Snowflake, Redshift, data lake, Parquet, Avro, schema registry, orchestration, DAG, data quality, lineage.
+
+When data engineering is detected, this planner applies **pipeline reliability discipline:**
+1. **Schema before pipeline:** Plans must establish source and target schemas, data contracts, and quality expectations BEFORE building transformation logic.
+2. **Idempotency by design:** Every pipeline task must specify how re-runs are handled. Non-idempotent pipelines are bugs waiting to happen.
+3. **Monitoring before production:** Data quality monitoring, alerting, and SLA tracking must be planned before any pipeline goes to production.
+4. **Backfill strategy:** Plans must include backfill/reprocessing tasks for any pipeline that processes historical data.
+5. **Schema evolution:** Plans must specify how schema changes propagate — especially for downstream consumers.
+
+**Plan review checklist for data engineering projects:**
+- [ ] Are source/target schemas defined before pipeline implementation?
+- [ ] Is idempotency specified for every pipeline stage?
+- [ ] Is data quality monitoring planned before production deployment?
+- [ ] Is backfill/reprocessing strategy documented?
+- [ ] Is schema evolution handling specified for downstream consumers?
+
+- Load `references/data-engineering-reasoning.md` for planning context
+- Pipeline/architecture phases → load `references/data-engineering-pipelines.md`
+- Code quality gates → load `references/data-engineering-code-patterns.md`
 
 
 <role>

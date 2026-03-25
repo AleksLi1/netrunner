@@ -91,6 +91,34 @@ This is the most critical section for quant codebases. Actively hunt for:
 - [Position sizing / risk management: present or absent?]
 ```
 
+### Active Code Scanning (when quant detected)
+
+After completing standard mapping, spawn `nr-quant-auditor` for automated scanning:
+```
+Task(subagent_type="nr-quant-auditor", description="Quant codebase audit for mapping",
+  prompt="Run FULL_AUDIT on the codebase. Write report to .planning/audit/.
+  Focus on temporal contamination risks for CONCERNS.md integration.")
+```
+Integrate audit findings into CONCERNS.md temporal risk assessment:
+- CRITICAL findings → add to Temporal Risk Assessment as high-priority concerns
+- WARNING findings → add as medium-priority concerns
+- Audit score → include in CONCERNS.md header as "Temporal Safety Score: N/100"
+
+### Feature Pipeline Mapping (enhanced)
+
+Using `references/feature-engineering.md` lifecycle, trace the complete feature pipeline:
+- **Raw data source** → identify data loading code, point-in-time compliance, publication delays
+- **Feature computation** → identify rolling/EMA/normalization code, check shift(1) pattern
+- **Feature storage** → is there a feature store? Versioning? As-of queries?
+- **Model input** → how are features assembled for model training/inference?
+
+At each stage, note:
+- Temporal safety status: SAFE / RISK / UNKNOWN
+- Normalization scope: expanding window / training-set-only / global (VIOLATION)
+- Lookback requirements: what is the maximum lookback period? (informs purge gap)
+
+Add to ARCHITECTURE.md as "Feature Pipeline Flow" subsection with the above analysis.
+
 ### Quant Mapper Anti-Patterns
 
 When mapping a quant codebase, do NOT:
@@ -99,6 +127,217 @@ When mapping a quant codebase, do NOT:
 - Document data flow without tracing the temporal boundary
 - Describe the validation setup without evaluating if it's truly temporal
 - Skip the TEMPORAL RISK ASSESSMENT section — this is the highest-value output for quant projects
+
+**Web Development** — activate when CONTEXT.md contains: React, Vue, Angular, CSS, Tailwind, component, layout, responsive, LCP, CLS, INP, hydration, SSR, SSG, Next.js, Nuxt, webpack, Vite, bundle, SPA, accessibility, WCAG, frontend.
+
+**If 2+ web signals detected → Web Codebase Mapping Mode active.**
+
+Load `references/web-reasoning.md` and apply these mapping principles:
+
+### Web-Specific Exploration Targets
+
+**For `tech` focus — add to STACK.md and INTEGRATIONS.md:**
+- UI frameworks: React, Vue, Angular, Svelte, Solid — note version and rendering mode (CSR/SSR/SSG)
+- Styling: CSS modules, Tailwind, styled-components, Sass — note strategy and design system
+- Build tools: webpack, Vite, Turbopack, esbuild — note config complexity and custom plugins
+- State management: Redux, Zustand, Jotai, Context API, React Query — note patterns used
+- Testing: Jest, Vitest, Playwright, Cypress — note coverage and test types
+- Flag bundle size and dependency count — bloated node_modules is a common web codebase concern
+
+**For `arch` focus — add to ARCHITECTURE.md and STRUCTURE.md:**
+- **Component hierarchy:** Map the component tree from layout root to feature leaves. Identify shared vs feature-specific components.
+- **Routing structure:** Map all routes, dynamic segments, layouts, and middleware. Note SSR vs CSR per route.
+- **Data fetching pattern:** Where does data loading happen? Server components, getServerSideProps, useEffect, React Query? Is it consistent?
+- **State management boundaries:** What state is global vs local vs server? Are there clear boundaries?
+
+**For `quality` focus — add to CONVENTIONS.md and TESTING.md:**
+- Component testing patterns (unit, integration, visual regression)
+- Accessibility testing (axe-core, lighthouse, manual audit)
+- Performance monitoring (Core Web Vitals tracking, bundle analysis)
+- Code style and linting (ESLint config, Prettier, import ordering)
+
+**For `concerns` focus — add WEB PERFORMANCE ASSESSMENT to CONCERNS.md:**
+- Bundle size analysis (main chunk, code splitting effectiveness)
+- Render performance (unnecessary re-renders, missing memoization)
+- Image optimization (sizes, formats, lazy loading)
+- Third-party script impact (analytics, tracking, ads)
+
+- Performance-related mapping → also load `references/web-performance.md`
+
+**API/Backend** — activate when CONTEXT.md contains: endpoint, REST, GraphQL, gRPC, auth, JWT, OAuth, database, ORM, Prisma, Drizzle, migration, middleware, rate limit, CORS, webhook, microservice, API gateway.
+
+**If 2+ API signals detected → API Codebase Mapping Mode active.**
+
+Load `references/api-reasoning.md` and apply these mapping principles:
+
+### API-Specific Exploration Targets
+
+**For `tech` focus — add to STACK.md and INTEGRATIONS.md:**
+- Framework: Express, Fastify, NestJS, Django, FastAPI, Rails — note version and middleware pattern
+- Database: PostgreSQL, MySQL, MongoDB, Redis — note ORM/driver and connection pooling
+- Auth: JWT, OAuth2, session-based, API keys — note provider and token management
+- API style: REST, GraphQL, gRPC, tRPC — note schema definition and validation
+- Testing: Jest, Pytest, Postman collections — note coverage on endpoints
+
+**For `arch` focus — add to ARCHITECTURE.md and STRUCTURE.md:**
+- **Request lifecycle:** Map the complete request path from ingress through middleware, routing, handler, service layer, database, and response.
+- **Auth/authz boundaries:** Where is authentication checked? Where is authorization enforced? Are there gaps?
+- **Database access patterns:** Are queries through ORM, raw SQL, or both? N+1 risk areas?
+- **Service boundaries:** If microservices, map inter-service communication (REST, gRPC, events).
+
+**For `concerns` focus — add API HEALTH ASSESSMENT to CONCERNS.md:**
+- Unvalidated endpoints (missing input validation)
+- Missing error handling (unhandled promise rejections, uncaught exceptions)
+- Security gaps (missing rate limiting, CORS misconfiguration, exposed secrets)
+- Performance bottlenecks (N+1 queries, missing indexes, unoptimized joins)
+
+- Design-related mapping → also load `references/api-design.md`
+
+**Systems/Infrastructure** — activate when CONTEXT.md contains: Kubernetes, Docker, Terraform, Ansible, CI/CD, deploy, container, pod, helm, monitoring, Prometheus, Grafana, observability, SRE, incident, SLO, SLA, cloud, AWS, GCP, Azure, load balancer.
+
+**If 2+ systems signals detected → Systems Codebase Mapping Mode active.**
+
+Load `references/systems-reasoning.md` and apply these mapping principles:
+
+### Systems-Specific Exploration Targets
+
+**For `tech` focus — add to STACK.md and INTEGRATIONS.md:**
+- IaC tools: Terraform, Pulumi, CloudFormation, Ansible — note state management
+- Container orchestration: Kubernetes, Docker Compose, ECS, Nomad — note version and config
+- CI/CD: GitHub Actions, GitLab CI, Jenkins, CircleCI — note pipeline stages
+- Monitoring: Prometheus, Grafana, Datadog, CloudWatch — note coverage and alerting
+- Cloud provider: AWS, GCP, Azure — note services used and regional deployment
+
+**For `arch` focus — add to ARCHITECTURE.md and STRUCTURE.md:**
+- **Network topology:** Map VPCs, subnets, security groups, load balancers, and DNS.
+- **Deployment pipeline:** Map the complete path from code commit to production deployment.
+- **Service mesh:** If present, map service discovery, traffic routing, and mTLS configuration.
+- **Storage architecture:** Map databases, caches, object storage, and their backup/replication topology.
+
+**For `concerns` focus — add INFRASTRUCTURE RISK ASSESSMENT to CONCERNS.md:**
+- Security gaps (overly permissive IAM, missing network policies, plaintext secrets)
+- Reliability risks (single points of failure, missing health checks, no rollback procedure)
+- Cost concerns (idle resources, oversized instances, missing autoscaling)
+- Operational gaps (missing monitoring, no runbooks, manual deployment steps)
+
+- Reliability-related mapping → also load `references/systems-reliability.md`
+
+**Mobile Development** — activate when CONTEXT.md contains: React Native, Flutter, iOS, Android, Swift, Kotlin, mobile, app, Expo, Xcode, Gradle, CocoaPods, offline, push notification, deep link, app store, TestFlight, APK, IPA.
+
+**If 2+ mobile signals detected → Mobile Codebase Mapping Mode active.**
+
+Load `references/mobile-reasoning.md` and apply these mapping principles:
+
+### Mobile-Specific Exploration Targets
+
+**For `tech` focus — add to STACK.md and INTEGRATIONS.md:**
+- Framework: React Native, Flutter, SwiftUI, Jetpack Compose — note version and native module usage
+- Navigation: React Navigation, go_router, UIKit — note stack structure
+- State management: Redux, Riverpod, Provider, MobX — note patterns
+- Native modules: Any custom native bridges, their purpose and maintenance status
+- Build: Xcode, Gradle, Fastlane, EAS — note signing and distribution setup
+
+**For `arch` focus — add to ARCHITECTURE.md and STRUCTURE.md:**
+- **Navigation graph:** Map all screens, transitions, deep links, and modal presentations.
+- **Data layer:** Map offline storage, sync mechanisms, and cache invalidation strategy.
+- **Native bridge architecture:** Map JS/Dart to native communication boundaries and performance bottlenecks.
+- **Platform differences:** Document intentional divergence between iOS and Android behavior.
+
+**For `concerns` focus — add MOBILE HEALTH ASSESSMENT to CONCERNS.md:**
+- Memory leak risks (missing cleanup, retained references, large image caches)
+- Offline gaps (features that crash without network, missing cache strategy)
+- Platform parity issues (features working on one platform but not the other)
+- App store compliance risks (privacy policy, permission usage justification)
+
+- Architecture-related mapping → also load `references/mobile-architecture.md`
+
+**Desktop Development** — activate when CONTEXT.md contains: Electron, Tauri, desktop, window management, IPC, tray, system tray, main process, renderer, native app, installer, auto-update, NSIS, DMG, AppImage, menubar, titlebar.
+
+**If 2+ desktop signals detected → Desktop Codebase Mapping Mode active.**
+
+Load `references/desktop-reasoning.md` and apply these mapping principles:
+
+### Desktop-Specific Exploration Targets
+
+**For `tech` focus — add to STACK.md and INTEGRATIONS.md:**
+- Framework: Electron, Tauri, NW.js — note version and process model
+- UI: React, Svelte, vanilla — note renderer framework and bundling
+- Native: Node.js addons, Rust bindings, system APIs — note usage and maintenance
+- Distribution: electron-builder, Tauri bundler, NSIS — note platforms and signing
+- Update: electron-updater, Tauri updater, Sparkle — note update channel and strategy
+
+**For `arch` focus — add to ARCHITECTURE.md and STRUCTURE.md:**
+- **Process model:** Map main process responsibilities, renderer processes, and IPC channel inventory.
+- **Window management:** Map window types, lifecycle events, and state persistence.
+- **Native integration points:** Map file system access, system tray, notifications, and OS-specific features.
+- **Security boundaries:** Map preload scripts, context isolation, and IPC validation.
+
+**For `concerns` focus — add DESKTOP HEALTH ASSESSMENT to CONCERNS.md:**
+- Memory leak risks (BrowserWindow leaks, IPC listener accumulation, unclosed handles)
+- Security concerns (disabled context isolation, exposed Node APIs, unvalidated IPC)
+- Cross-platform gaps (features working on one OS but not others)
+- Distribution issues (unsigned builds, missing auto-update, platform-specific bugs)
+
+- Architecture-related mapping → also load `references/desktop-architecture.md`
+
+**Data Analysis** — activate when CONTEXT.md contains: pandas, numpy, scipy, statistics, EDA, exploratory data analysis, visualization, matplotlib, seaborn, plotly, hypothesis testing, p-value, A/B test, regression analysis, correlation, distribution, Jupyter, notebook.
+
+**If 2+ data analysis signals detected → Data Analysis Codebase Mapping Mode active.**
+
+Load `references/data-analysis-reasoning.md` and apply these mapping principles:
+
+### Data Analysis-Specific Exploration Targets
+
+**For `tech` focus — add to STACK.md and INTEGRATIONS.md:**
+- Analysis: pandas, numpy, scipy, statsmodels — note versions
+- Visualization: matplotlib, seaborn, plotly, altair — note output formats
+- Notebooks: Jupyter, Colab, VS Code — note execution environment
+- Data sources: CSV, databases, APIs — note access patterns and freshness
+- Environment: conda, pip, Docker — note reproducibility setup
+
+**For `arch` focus — add to ARCHITECTURE.md and STRUCTURE.md:**
+- **Analysis pipeline:** Map data loading → cleaning → transformation → analysis → visualization flow.
+- **Reproducibility infrastructure:** Map seed management, version pinning, and data snapshotting.
+- **Notebook vs script organization:** Map which analyses are notebooks vs production scripts.
+- **Shared utilities:** Map common data loading, cleaning, and visualization utilities.
+
+**For `concerns` focus — add ANALYSIS QUALITY ASSESSMENT to CONCERNS.md:**
+- Reproducibility risks (missing seeds, unpinned versions, unreproducible notebook state)
+- Methodological concerns (unchecked assumptions, missing effect sizes, p-hacking risks)
+- Data quality issues (undocumented missing data handling, outlier treatment)
+- Visualization integrity (misleading scales, missing labels, inappropriate chart types)
+
+- Methods-related mapping → also load `references/data-analysis-methods.md`
+
+**Data Engineering** — activate when CONTEXT.md contains: pipeline, ETL, ELT, Airflow, Spark, dbt, Kafka, Flink, warehouse, BigQuery, Snowflake, Redshift, data lake, Parquet, Avro, schema registry, orchestration, DAG, data quality, lineage.
+
+**If 2+ data engineering signals detected → Data Engineering Codebase Mapping Mode active.**
+
+Load `references/data-engineering-reasoning.md` and apply these mapping principles:
+
+### Data Engineering-Specific Exploration Targets
+
+**For `tech` focus — add to STACK.md and INTEGRATIONS.md:**
+- Orchestration: Airflow, Prefect, Dagster, dbt — note version and deployment
+- Compute: Spark, Flink, Beam, pandas — note cluster configuration
+- Storage: S3, GCS, HDFS, data lake — note partitioning and format (Parquet, Avro, JSON)
+- Warehouse: BigQuery, Snowflake, Redshift — note schema and access patterns
+- Streaming: Kafka, Kinesis, Pub/Sub — note consumer groups and offset management
+- Quality: Great Expectations, dbt tests, custom assertions — note coverage
+
+**For `arch` focus — add to ARCHITECTURE.md and STRUCTURE.md:**
+- **Pipeline DAG:** Map all pipeline stages, dependencies, triggers, and schedules.
+- **Data flow:** Map data from sources through transformations to consumers. Note schema at each boundary.
+- **Partition strategy:** Map how data is partitioned in storage and how queries prune partitions.
+- **Consumer integration:** Map downstream consumers (dashboards, ML models, APIs) and their freshness requirements.
+
+**For `concerns` focus — add PIPELINE HEALTH ASSESSMENT to CONCERNS.md:**
+- Idempotency gaps (append-only writes, missing dedup, non-deterministic transforms)
+- Schema drift risks (no schema validation, missing evolution strategy)
+- Data quality gaps (no assertions, missing row count checks, no anomaly detection)
+- Operational risks (no alerting, manual recovery procedures, missing backfill strategy)
+
+- Pipeline-related mapping → also load `references/data-engineering-pipelines.md`
 
 
 ## Brain Context Feeding

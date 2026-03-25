@@ -101,6 +101,36 @@ Add these sections to CONTEXT.md when API domain is detected:
 | 503 | Service Unavailable | Overloaded, deploying, maintenance | Retry with backoff, load shedding, graceful degradation |
 | 504 | Gateway Timeout | Upstream too slow, query timeout | Per-service timeouts, async processing, query optimization |
 
+## Deep Reference Reasoning Triggers
+
+These triggers activate when specific patterns are detected in the user's message or CONTEXT.md.
+Each trigger loads the appropriate deep reference for expert-level reasoning.
+
+### Database Performance Trigger
+**Activate on:** slow query, N+1, index, missing index, connection pool, query timeout, EXPLAIN ANALYZE, full table scan, DB CPU spike
+**Load:** `references/api-design.md` (section 2: Database Optimization)
+**Reasoning:** Instrument first. Enable query logging, count queries per request, run EXPLAIN ANALYZE on hot queries. 80% of "slow API" issues are missing indexes or N+1 patterns. Do not guess — measure the actual bottleneck before suggesting changes.
+
+### Auth Architecture Review Trigger
+**Activate on:** auth, JWT, OAuth, token, permission, RBAC, ABAC, 401, 403, session, refresh token, API key
+**Load:** `references/api-design.md` (section 3: Auth Patterns) + `references/api-code-patterns.md`
+**Reasoning:** Separate authentication (who are you?) from authorization (what can you do?). Token lifecycle issues (expiry, refresh race, clock skew) cause more auth failures than security bugs. Check the token flow before checking the auth logic. Never store JWTs in localStorage.
+
+### API Design Review Trigger
+**Activate on:** API design, versioning, breaking change, deprecation, resource modeling, endpoint naming, REST maturity, pagination, OpenAPI
+**Load:** `references/api-reasoning.md` + `references/api-design.md`
+**Reasoning:** Every API change must be classified as additive (safe), semantic (dangerous), or destructive (breaking). Versioning is not optional for breaking changes. Use cursor-based pagination for any endpoint that might serve 10,000+ records. Validate the OpenAPI spec before implementation.
+
+### Error Handling Audit Trigger
+**Activate on:** error handling, validation, error code, error response, resilience, circuit breaker, retry, fallback, 500, unhandled exception
+**Load:** `references/api-code-patterns.md` (patterns 2, 5, 13)
+**Reasoning:** Classify errors by severity (client vs server) and criticality (blocking vs non-blocking). Use RFC 7807 Problem Details format. Never swallow errors — every catch block must log or re-throw. Non-critical side effects (email, notifications) should not block the response.
+
+### Webhook & Event Architecture Trigger
+**Activate on:** webhook, event, callback, notification, pub/sub, event-driven, dead letter, delivery guarantee
+**Load:** `references/api-reasoning.md` (trigger 8) + `references/api-design.md`
+**Reasoning:** Webhooks are delivery promises. Design for: signature verification (HMAC-SHA256), retry with exponential backoff, idempotent processing (event ID deduplication), dead letter queues for failed deliveries, and explicit ordering semantics (sequence numbers or no ordering guarantee).
+
 ## API Phase Structure Template
 Typical API project phases:
 1. **Schema / Contract Design** — define resources, endpoints, request/response shapes before coding

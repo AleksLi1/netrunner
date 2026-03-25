@@ -174,6 +174,51 @@ These questions activate when quant finance is detected. They are MORE IMPORTANT
 - "Multi-region or single-region?" (Geographic requirements)
 - "What's the cost ceiling?" (Budget constraint)
 
+### Mobile Domain
+- "iOS, Android, or both?" (Platform scope)
+- "What's the minimum OS version?" (API availability)
+- "Offline-first or online-only?" (Data architecture)
+- "What's the navigation structure?" (Screen architecture)
+- "How is auth handled on device?" (Secure storage, biometric)
+- "Push notification requirements?" (Server integration, deep linking)
+- "What's the target app size?" (Download conversion)
+- "App store submission process?" (Automated or manual)
+- "Crash reporting and analytics?" (Production visibility)
+- "Performance targets?" (Startup time, frame rate, memory)
+
+### Desktop Domain
+- "Electron, Tauri, or native?" (Framework and process model)
+- "Windows, macOS, Linux, or all?" (Platform matrix)
+- "Local-first or cloud-dependent?" (Data architecture)
+- "What native OS features needed?" (File system, tray, notifications)
+- "Auto-update strategy?" (Distribution and update mechanism)
+- "Code signing set up?" (Distribution readiness)
+- "Expected session duration?" (Memory management implications)
+- "System integration needs?" (File associations, protocol handlers)
+
+### Data Analysis Domain
+- "What's the research question?" (Analysis focus)
+- "Exploratory or confirmatory?" (Statistical rigor level)
+- "What's the sample size?" (Statistical power)
+- "What methods are planned and why?" (Methodology selection)
+- "Known confounders?" (Causal validity)
+- "How to handle missing data?" (Imputation strategy)
+- "Deliverable format?" (Notebook, report, dashboard)
+- "Reproducibility requirement?" (Seeds, versions, data snapshots)
+- "Multiple comparisons planned?" (Correction method needed)
+
+### Data Engineering Domain
+- "Data volume per time unit?" (Batch vs streaming)
+- "Data quality contract?" (Schema validation, dedup)
+- "Freshness SLA?" (Architecture constraint)
+- "Late data handling?" (Event-time vs processing-time)
+- "Reprocessing capability?" (Backfill strategy)
+- "Who consumes the output?" (Consumer requirements)
+- "Failure handling strategy?" (Alerting, retry, manual)
+- "Retention policy?" (Storage cost vs compliance)
+- "Schema evolution strategy?" (Registry, documentation, ad-hoc)
+- "Cost monitoring?" (Budget ceiling, per-run tracking)
+
 ---
 
 ## Failure Signatures
@@ -520,23 +565,237 @@ Quick estimation of project complexity to calibrate phase count and time expecta
 2. What domain? (check for keyword signals)
    ├── model/training/loss/features/accuracy → ML
    │   └── Sharpe/P&L/backtest/regime/lookahead/trading? → ML:QUANT (activate quant persona)
-   ├── React/CSS/component/layout/UI/page → Web
-   ├── endpoint/auth/database/REST/GraphQL → API
-   ├── deploy/scale/Kubernetes/Terraform/CI → Systems
+   ├── React/CSS/component/layout/UI/page/hydration/SSR/bundle → Web
+   ├── endpoint/auth/database/REST/GraphQL/ORM/migration/JWT → API
+   ├── deploy/scale/Kubernetes/Terraform/CI/Docker/monitoring/SRE → Systems
+   ├── React Native/Flutter/iOS/Android/mobile/app/offline/push → Mobile
+   ├── Electron/Tauri/desktop/IPC/tray/main process/renderer → Desktop
+   ├── pandas/numpy/scipy/statistics/EDA/p-value/A/B test → Data Analysis
+   ├── pipeline/ETL/Airflow/Spark/dbt/Kafka/warehouse/BigQuery → Data Engineering
    └── None of the above → General
 
 3. Check for domain overlap (multiple signal clusters present)
    └── If overlap detected → See Domain Overlap Patterns section
 
-4. If ML:QUANT detected → Load references/quant-finance.md
-   └── Apply heightened skepticism, temporal discipline, execution realism
+4. Domain-specific activation:
+   ├── ML:QUANT detected → Load references/quant-finance.md → heightened skepticism, temporal discipline
+   ├── Web detected → Load references/web-reasoning.md → performance measurement, accessibility rigor
+   ├── API detected → Load references/api-reasoning.md → contract discipline, security awareness
+   ├── Systems detected → Load references/systems-reasoning.md → failure mode analysis, blast radius
+   ├── Mobile detected → Load references/mobile-reasoning.md → offline-first, platform parity
+   ├── Desktop detected → Load references/desktop-reasoning.md → memory management, IPC security
+   ├── Data Analysis detected → Load references/data-analysis-reasoning.md → methodological rigor
+   └── Data Engineering detected → Load references/data-engineering-reasoning.md → idempotency, schema contracts
 ```
+
+---
+
+## Mobile Development Extension
+
+### Mobile Diagnostic Categories
+
+| Category | Signal | Key Concern |
+|----------|--------|-------------|
+| OFFLINE_SYNC | Data unavailable offline, sync conflicts, stale cache | Offline-first architecture, conflict resolution strategy |
+| APP_LIFECYCLE | State lost on background, crash on resume, cold start issues | Proper state persistence across all lifecycle transitions |
+| NAVIGATION | Deep link failures, back stack corruption, modal presentation bugs | Navigation architecture and state management |
+| PUSH_NOTIFICATION | Notifications not received, wrong routing, permission issues | Token management, payload handling in all app states |
+| PLATFORM_PARITY | Feature works on iOS but not Android (or vice versa) | Platform-specific APIs, behavior differences |
+| PERFORMANCE_MOBILE | Slow scrolling, janky animations, high battery drain | Main thread blocking, bridge congestion, image optimization |
+| APP_STORE | Rejection, guideline violation, metadata issues | Compliance with Apple/Google review guidelines |
+
+### Mobile Failure Signatures
+
+| Symptom | Root Cause | Diagnostic Steps | Resolution |
+|---------|-----------|-----------------|------------|
+| Crash on background→foreground transition | State not persisted across lifecycle events | Check componentDidMount/useEffect for state restoration; verify AsyncStorage/SQLite persistence | Persist critical state to storage on background event; restore on foreground |
+| Blank screen on cold start | Async data load blocking render without loading state | Check initial render path; verify splash screen config; check for synchronous AsyncStorage calls | Add loading state to initial render; use splash screen API to control dismissal |
+| Slow list scrolling (< 30fps) | Heavy render on main thread, unoptimized FlatList/RecyclerView | Profile with React Native Profiler or Android Profiler; check getItemLayout, keyExtractor | Implement getItemLayout, use memo for items, reduce render complexity, use FlashList |
+| Push notification not received | Token not registered, permission denied, background handler missing | Check FCM/APNs token registration; verify permissions; check background handler registration | Register token on app start; handle permission denial; implement background message handler |
+| Deep link opens wrong screen | URL scheme conflict, route params not parsed, missing navigation handler | Check URL scheme registration in app config; log received URL; trace navigation resolution | Register unique URL scheme; validate and parse params; add fallback route |
+| App rejected from store | Missing privacy policy, unauthorized API usage, incomplete metadata | Read rejection reason carefully; check recent guideline changes; review permission usage descriptions | Fix specific guideline violation; add required metadata; resubmit with explanation |
+| Data sync conflicts | No conflict resolution strategy, optimistic updates without rollback | Log both client and server state on conflict; check sync timestamp logic | Implement last-write-wins, server-wins, or CRDT-based conflict resolution |
+| Memory warning/OOM crash | Image cache unbounded, leaked event listeners, large data in memory | Profile with Xcode Instruments or Android Profiler; check for growing allocations | Implement image cache limits; clean up listeners in useEffect returns; paginate large datasets |
+
+### Mobile Anti-Patterns
+
+| Anti-Pattern | Description | Detection Signal | Correction |
+|-------------|-------------|-----------------|------------|
+| Network-First Design | Assuming network is always available | No offline handling, no cache layer, fetch-on-every-render | Design offline-first: cache locally, sync when connected |
+| Permission Spam | Requesting all permissions on first launch | Permission dialogs appear before any user context | Request permissions in context, when user performs relevant action |
+| Platform Ignorance | Writing iOS-first code and hoping it works on Android | No Platform.select, hardcoded iOS paths, untested on Android | Test on both platforms every sprint; use platform abstractions |
+| Bridge Bottleneck | Heavy computation crossing JS/native bridge frequently | Janky animations, slow list rendering, high CPU in bridge | Move computation to native module or use JSI for hot paths |
+| Monolithic Navigation | Single navigation stack for entire app | Deep nesting, broken back button, state persistence issues | Use nested navigators with clear boundaries and reset logic |
+| Ignoring App Lifecycle | Not handling background/foreground transitions | State loss, stale data on resume, duplicate API calls | Subscribe to AppState changes; persist and restore state correctly |
+| Screenshot Data Leak | Sensitive data visible in app switcher screenshot | Banking/medical data visible in recent apps view | Implement blur overlay on background event |
+| Unbounded Image Cache | No cache eviction policy for downloaded images | Memory grows continuously, eventual OOM crash | Set cache size limits; implement LRU eviction; use progressive loading |
+
+---
+
+## Desktop Development Extension
+
+### Desktop Diagnostic Categories
+
+| Category | Signal | Key Concern |
+|----------|--------|-------------|
+| PROCESS_MODEL | IPC failures, renderer crashes, main process stability | Correct separation of main/renderer responsibilities |
+| WINDOW_MGMT | Window state lost, multi-window bugs, tray behavior | Window lifecycle management and state persistence |
+| IPC_SECURITY | Arbitrary code execution risk, unvalidated IPC messages | Context isolation, preload script safety, IPC validation |
+| NATIVE_INTEGRATION | File system errors, system API differences, path issues | Cross-platform native API abstraction |
+| DISTRIBUTION | Installer failures, signing errors, update issues | Code signing, installer creation, auto-update mechanism |
+| MEMORY_DESKTOP | Memory growth over time, leaked windows, process bloat | Long-running process memory management |
+| CROSS_PLATFORM | Different behavior on Windows/macOS/Linux | Platform-specific API availability and behavior |
+
+### Desktop Failure Signatures
+
+| Symptom | Root Cause | Diagnostic Steps | Resolution |
+|---------|-----------|-----------------|------------|
+| White/blank window on startup | Renderer crash or failed asset loading | Check main process console for errors; verify file paths in production build; check CSP headers | Fix asset paths for production (use app.getAppPath()); handle renderer errors gracefully |
+| IPC messages not received | Handler not registered or message serialization failure | Log all IPC send/receive events; check channel name spelling; verify preload script exposure | Register handlers before window creation; validate channel names; use contextBridge correctly |
+| Memory grows over hours of use | Leaked BrowserWindow instances, event listener accumulation | Take heap snapshots at intervals; count BrowserWindow instances; check for removeListener calls | Null window references on close; remove all listeners in cleanup; use WeakRef for caches |
+| Auto-update fails silently | Code signing mismatch, CDN error, version comparison bug | Check update server logs; verify code signing certificate; test update URL manually | Fix code signing; verify update feed format; test update on clean install |
+| Different behavior on Linux | Missing system dependency or GTK/X11 API difference | Test on target Linux distribution; check for platform-specific API calls; verify dependencies | Use Platform detection; bundle required dependencies; add platform-specific fallbacks |
+| App won't start after update | Incomplete update, corrupted binary, permission issue | Check update log files; verify file permissions; compare hash of installed vs expected binary | Implement update verification; add rollback on failed start; use installer with repair mode |
+| Tray icon not showing | Wrong icon format, missing tray API on Linux, permissions | Check icon file format (ICO/PNG/ICNS per platform); verify tray API availability | Use platform-specific icon formats; check for tray support before creating; add fallback UI |
+| File dialog crashes app | Main thread blocking or platform-specific dialog bug | Check if dialog called from renderer without IPC; test on each OS | Use dialog.showOpenDialog from main process via IPC; handle cancel correctly |
+
+### Desktop Anti-Patterns
+
+| Anti-Pattern | Description | Detection Signal | Correction |
+|-------------|-------------|-----------------|------------|
+| Node in Renderer | Enabling nodeIntegration in renderer windows | `nodeIntegration: true` in BrowserWindow config | Enable contextIsolation; use preload scripts; expose only needed APIs via contextBridge |
+| IPC Wild West | No validation on IPC messages from renderer | IPC handlers trust all arguments without checking | Validate sender, sanitize arguments, whitelist allowed channels |
+| Path Hardcoding | Using hardcoded path separators or user directories | String paths with `/` or `\`, hardcoded `/Users/` or `C:\` | Use path.join(), app.getPath(), os.homedir() |
+| Single Window Assumption | Not handling multiple windows or window recreation | No BrowserWindow tracking, crash on second window open | Track all windows in a Set; handle window-all-closed per platform |
+| Memory Hoarding | Never releasing large objects or caching everything | Heap grows monotonically, process > 1GB after hours | Implement cache eviction; use streams for large files; close unused windows |
+| Main Process Web Requests | Making HTTP requests from main process when renderer can | Main process doing API calls, handling cookies, managing auth | Route web requests through renderer; main process handles only OS integration |
+| Ignoring Platform Conventions | Same UX on all platforms (Windows menus on macOS, etc.) | macOS app without app menu, Windows app without taskbar integration | Follow platform conventions: app menu on macOS, taskbar on Windows, desktop files on Linux |
+| Blocking Main Process | Synchronous file I/O or computation in main process | App UI freezes during file operations or computation | Use async APIs; move computation to worker threads; stream large files |
+
+---
+
+## Data Analysis Extension
+
+### Data Analysis Diagnostic Categories
+
+| Category | Signal | Key Concern |
+|----------|--------|-------------|
+| METHODOLOGY | Wrong test selected, assumptions violated, invalid comparison | Appropriate statistical test selection and assumption verification |
+| REPRODUCIBILITY | Different results on re-run, environment-dependent outcomes | Random seeds, library versions, data versioning, notebook state |
+| DATA_QUALITY | Missing values, outliers, data type coercion, encoding issues | Data profiling, cleaning documentation, quality gates |
+| VISUALIZATION | Misleading charts, wrong scale, missing labels, cherry-picking | Honest data representation with appropriate chart types |
+| MULTIPLE_TESTING | Testing many hypotheses without correction, p-hacking | Family-wise error rate control, pre-registration |
+| SAMPLE_SIZE | Underpowered analysis, drawing conclusions from insufficient data | Power analysis, confidence interval width, effect size |
+| CAUSALITY | Confusing correlation with causation, Simpson's paradox | Causal inference methodology, confounding control |
+
+### Data Analysis Failure Signatures
+
+| Symptom | Root Cause | Diagnostic Steps | Resolution |
+|---------|-----------|-----------------|------------|
+| p-value just below 0.05 from many tests | Multiple testing without correction | Count total tests run; check for test selection based on results | Apply Bonferroni, Holm, or FDR correction; pre-register hypotheses |
+| Non-reproducible results across runs | Missing random seed or stochastic algorithm without fix | Check for random seed setting; verify library versions; check notebook execution order | Set numpy/random seeds at script start; pin library versions; use scripts over notebooks for final analysis |
+| Surprising strong correlation | Confounding variable or common cause | Check for lurking variables; stratify analysis; test with partial correlation | Control for confounders; use causal inference methods; report conditional relationships |
+| t-test returns significant but means look similar | Large sample size making tiny effects significant | Calculate effect size (Cohen's d); report confidence intervals; check practical significance | Report effect size alongside p-value; interpret practical significance; consider equivalence testing |
+| Regression R-squared very high (> 0.95) | Overfitting, multicollinearity, or data leakage | Check condition number; compute VIF; verify no target leakage in features | Remove collinear features; use cross-validation; audit feature construction for leakage |
+| Visualization shows clear trend but test non-significant | Small sample size or high variance | Compute statistical power; check sample size; examine variance | Collect more data; use non-parametric methods; report confidence intervals with the visualization |
+| Different conclusions from same data | Different preprocessing, outlier handling, or test selection | Document all preprocessing decisions; run sensitivity analysis | Pre-register analysis plan; report results across reasonable analytic choices (multiverse analysis) |
+| Memory error on large dataset | Inefficient pandas operations (iterating rows, copy-heavy chains) | Profile memory with memory_profiler; check for .copy() chains; look for iterrows() | Use vectorized operations; chunk processing; use Dask or Polars for large datasets |
+
+### Data Analysis Anti-Patterns
+
+| Anti-Pattern | Description | Detection Signal | Correction |
+|-------------|-------------|-----------------|------------|
+| P-Hacking | Running many tests and reporting only significant ones | Many unreported tests, "let's try another test", selective reporting | Pre-register hypotheses; report all tests; apply multiple testing correction |
+| Ignoring Assumptions | Running tests without checking prerequisites | No normality check before t-test, no homoscedasticity check before ANOVA | Check and report assumption tests; use non-parametric alternatives when assumptions fail |
+| Correlation Causation | Inferring causal relationships from observational data | "X causes Y" language without experimental design or causal framework | Use "X is associated with Y"; apply causal inference methods if causal claims are needed |
+| Outlier Deletion | Removing outliers without justification or sensitivity analysis | Observations removed with no documented reason | Document removal criteria; run analysis with and without outliers; report both |
+| Notebook Drift | Running notebook cells out of order, creating hidden state | Results change depending on cell execution order | Restart kernel and run all before reporting; convert to scripts for final analysis |
+| Visualization Dishonesty | Truncated axes, misleading scales, cherry-picked ranges | Y-axis not starting at zero for bar charts, zoomed-in time ranges | Use appropriate scales; show full range; document any axis modifications |
+| Sample Size Neglect | Drawing strong conclusions from tiny samples | n < 30 with strong claims, no power analysis, no confidence intervals | Compute and report required sample size; show confidence intervals; qualify conclusions |
+| Data Dredging | Exploring data until finding a pattern, then claiming discovery | No pre-registered hypothesis, discovery framed as confirmation | Separate exploratory and confirmatory analyses; validate on holdout data |
+
+---
+
+## Data Engineering Extension
+
+### Data Engineering Diagnostic Categories
+
+| Category | Signal | Key Concern |
+|----------|--------|-------------|
+| PIPELINE_RELIABILITY | Pipeline failures, stuck tasks, silent data loss | Idempotency, retry logic, failure alerting, dead letter handling |
+| SCHEMA_EVOLUTION | Breaking changes, incompatible consumers, migration failures | Schema versioning, backward/forward compatibility, registry |
+| DATA_QUALITY_ENG | Missing records, duplicates, type coercion, freshness violations | Quality assertions at pipeline boundaries, anomaly detection |
+| ORCHESTRATION | DAG failures, scheduling conflicts, dependency deadlocks | DAG design, trigger management, resource allocation |
+| SCALE_PERFORMANCE | Slow pipelines, OOM in Spark, warehouse query timeout | Partition strategy, data skew, resource tuning |
+| LATE_DATA | Out-of-order events, late arrivals, incorrect aggregations | Event-time vs processing-time, watermarking, reprocessing |
+| COST_EFFICIENCY | Runaway cloud costs, over-provisioned clusters, scan-heavy queries | Partition pruning, caching, auto-scaling, data lifecycle |
+
+### Data Engineering Failure Signatures
+
+| Symptom | Root Cause | Diagnostic Steps | Resolution |
+|---------|-----------|-----------------|------------|
+| Pipeline silently produces wrong row count | Schema drift in source, join key mismatch, or filter bug | Compare source row count to output; check join cardinality; log rows at each stage | Add row count assertions at boundaries; alert on >5% deviation; validate join keys |
+| Spark job OOM on large partition | Data skew concentrating records on single partition key | Check partition size distribution; look for hot keys in join/group-by | Salted keys for skewed joins; repartition before aggregation; increase executor memory |
+| Duplicate records in target table | Non-idempotent write (append without dedup) or retry without dedup | Count distinct vs total records; check for retry logic without idempotency | Use MERGE/upsert operations; add dedup step before write; use partition overwrite |
+| Dashboard shows stale data | Pipeline succeeded but processed empty partition, or scheduler skipped run | Check pipeline logs for actual records processed; verify scheduler trigger conditions | Add zero-row alerting; verify trigger configuration; add data freshness SLA monitoring |
+| Airflow DAG stuck in running state | Upstream sensor timeout, pool exhaustion, or deadlock | Check sensor logs; verify pool slot availability; look for circular dependencies | Set sensor timeout; increase pool size; break circular dependencies with external triggers |
+| Query timeout on warehouse table | Missing partition pruning, full table scan, or expired clustering | Check query plan for partition pruning; verify clustering keys; check table size growth | Add partition filter to query; re-cluster table; implement data lifecycle (drop old partitions) |
+| Schema registry rejects new schema | Backward-incompatible change (field removal, type change) | Compare new schema to registered schema; check compatibility mode setting | Use additive-only changes; add new fields instead of modifying; use FULL compatibility mode |
+| Late-arriving data missing from aggregations | Processing-time window closed before late data arrived | Check watermark settings; compare event-time to processing-time; look for out-of-order events | Increase watermark delay; implement late data side output; use reprocessing for accuracy |
+
+### Data Engineering Anti-Patterns
+
+| Anti-Pattern | Description | Detection Signal | Correction |
+|-------------|-------------|-----------------|------------|
+| Append-Only Writes | Always appending without dedup, creating duplicates on retry | Row count grows on re-run, duplicate IDs in target | Use MERGE/upsert, partition overwrite, or dedup-on-write |
+| Schema by Convention | No schema validation, relying on producer/consumer agreement | Silent type coercion, missing columns discovered in production | Implement schema registry; validate at pipeline boundaries; use typed data classes |
+| SELECT * in Production | Unbounded queries without partition pruning or column selection | Full table scans, high warehouse costs, slow queries | Always specify columns; always filter by partition key; set scan limits |
+| Monolithic Pipeline | Single DAG that does everything from ingestion to serving | Long execution time, single failure blocks everything, hard to test | Break into ingestion, transformation, and serving stages; use intermediate storage |
+| Manual Backfill | No automated reprocessing capability, manual SQL for fixes | Ad-hoc queries to fix data issues, no backfill documentation | Build idempotent pipelines with date-range parameters; automate backfill with date loops |
+| Alert Fatigue | Too many alerts, or alerts only on failure (not on data quality) | Team ignores alerts, data issues found by consumers not pipeline | Alert on data quality anomalies (row count, null rate, freshness); reduce noise; tier alerts by severity |
+| Implicit Dependencies | DAG dependencies don't match actual data dependencies | Pipeline B runs before Pipeline A finishes, causing inconsistent results | Make all data dependencies explicit in DAG; use data-aware scheduling; add dependency sensors |
+| Cost Blindness | No monitoring of compute and storage costs per pipeline | Surprise cloud bills, unused tables consuming storage, over-provisioned clusters | Tag resources per pipeline; set up cost alerts; implement data lifecycle policies; right-size clusters |
+
+---
+
+## Mobile + API Domain Overlap Patterns
+
+### Mobile + API (Mobile Backend)
+- **Primary:** Mobile | **Secondary:** API
+- **Key Concern:** Offline-first data sync, optimistic updates, auth token refresh, push notification delivery
+- **Strategy:** Design API with mobile constraints in mind — batch endpoints, delta sync, compression. Build offline-capable mobile data layer before integrating live API.
+- **Common Pitfall:** Designing API for web and expecting mobile to "just work" — mobile needs offline support, token refresh, and bandwidth-efficient responses
+- **Phase Structure:** API contract → Mobile data layer → Offline sync → Online integration → Push notifications
+
+### Mobile + Systems (App Platform)
+- **Primary:** Mobile | **Secondary:** Systems
+- **Key Concern:** CI/CD for mobile builds, certificate management, beta distribution, crash reporting
+- **Strategy:** Set up mobile CI/CD (Fastlane, EAS) early. Automate signing, building, and distribution before feature development.
+- **Common Pitfall:** Manual builds and ad-hoc distribution — blocks testing and feedback cycles
+
+### Desktop + API (Desktop Backend)
+- **Primary:** Desktop | **Secondary:** API
+- **Key Concern:** Local-first with cloud sync, auth in long-running process, offline capability
+- **Strategy:** Build desktop app with local storage first, add cloud sync as enhancement. Handle auth token refresh for sessions lasting days.
+- **Common Pitfall:** Treating desktop like a web app — desktop users expect instant response from local data, not loading spinners
+
+### Data Analysis + Data Engineering (Analytical Platform)
+- **Primary:** Data Engineering | **Secondary:** Data Analysis
+- **Key Concern:** Data quality pipeline feeding analytical workloads, schema stability for analyses
+- **Strategy:** Build reliable data pipeline first with quality gates, then build analysis layer on top. Ensure schema changes propagate to downstream analyses.
+- **Common Pitfall:** Analyzing data before pipeline reliability is established — analysis on unreliable data produces unreliable conclusions
+
+### Web + Mobile (Cross-Platform)
+- **Primary:** Web | **Secondary:** Mobile
+- **Key Concern:** Shared business logic, consistent UX across platforms, responsive vs native trade-offs
+- **Strategy:** Define shared API contract and design system. Build web and mobile in parallel with shared backend. Use shared component libraries where possible.
+- **Common Pitfall:** Building web-first and "shrinking" for mobile — mobile UX patterns differ fundamentally from web
 
 ---
 
 ## Taxonomy Version
 
-- **Version:** 3.0
+- **Version:** 4.0
 - **Last updated:** 2026-03-25
-- **Line count target:** 500+ (comprehensive diagnostic knowledge base with quant finance specialization)
-- **Sections:** 12 (Classification, Matrix, Questions, Domain Extensions + Quant Finance, Failure Signatures + Quant, Resolution Strategies, Anti-Patterns + Quant, Domain Overlap, Confidence Calibration, Severity, Complexity, Decision Tree)
+- **Line count target:** 2000+ (comprehensive diagnostic knowledge base with 8 domain specializations)
+- **Sections:** 20+ (Classification, Matrix, Questions, Domain Extensions for ML/Quant/Web/API/Systems/Mobile/Desktop/Data Analysis/Data Engineering, Failure Signatures per domain, Resolution Strategies, Anti-Patterns per domain, Domain Overlap Patterns, Confidence Calibration, Severity, Complexity, Decision Tree)

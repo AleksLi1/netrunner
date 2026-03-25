@@ -125,6 +125,55 @@ These are activated ONLY for quantitative finance projects. They represent the m
 | Loss-metric misalignment | Loss decreasing but target metric flat or decreasing | The model is optimizing what you told it to, which isn't what you care about. Map loss components to target metrics. Check if auxiliary losses are drowning the signal you want. |
 | Complexity premium illusion | Complex model barely beats simple baseline | The marginal gain doesn't justify the complexity risk. Compare to linear/tree baseline. If delta < 2%, the complex model is probably fitting noise. |
 
+## Reasoning Triggers — Deep References
+
+These triggers activate loading of specialized reference files for deep knowledge. They extend the base quant reasoning with comprehensive coverage.
+
+### Architecture Selection Trigger
+**Activate when:** Query mentions model architecture, LSTM vs transformer, which model to use, architecture decision, model selection, neural network vs tree-based.
+**Load:** `references/ml-training.md` — Architecture Selection section and Architecture Deep Dives.
+**Gate questions before answering:**
+- Has a baseline been established first? (If no baseline, recommend LightGBM/linear first)
+- Is the proposed architecture justified by data volume and task complexity?
+- What is the inference latency requirement? (Transformers are slow; trees are fast)
+- Is the complexity premium real? (Complex model must beat simple by > 2% to justify risk)
+
+### Training Pipeline Trigger
+**Activate when:** Query mentions training loop, DataLoader, learning rate, batch size, early stopping, gradient clipping, loss function, optimizer, epochs, training configuration.
+**Load:** `references/ml-training.md` — Training Pipeline Best Practices and Loss Function Design.
+**Gate questions before answering:**
+- Is the DataLoader shuffling? (CRITICAL: must be False for time series)
+- Is early stopping monitoring validation metric (not training loss)?
+- Is the loss function aligned with the actual trading objective?
+- Are gradients being clipped? (Financial return outliers cause NaN without clipping)
+- Are random seeds set for ALL sources of randomness?
+
+### Feature Engineering Trigger (Enhanced)
+**Activate when:** Query mentions features, rolling statistics, indicators, normalization, feature selection, IC, information coefficient, feature importance, ablation, feature pipeline.
+**Load:** `references/feature-engineering.md` — Full feature lifecycle reference.
+**Gate questions before answering:**
+- Does every rolling computation use shift(1) before rolling()? (Temporal guard)
+- Is normalization scope correct? (Expanding window or training-set-only, never global)
+- Is feature selection done inside walk-forward CV? (Selection on full data = snooping)
+- Has IC decay been measured? (A feature with IC that doesn't decay monotonically is suspicious)
+- Is multiple testing correction applied? (Testing N features requires Bonferroni or FDR)
+
+### Strategy Evaluation Trigger
+**Activate when:** Query mentions Sharpe ratio, performance evaluation, backtest results, strategy metrics, drawdown, risk metrics, transaction costs, capacity.
+**Load:** `references/strategy-metrics.md` — Full metric reference with correct formulas.
+**Gate questions before answering:**
+- Is the Sharpe ratio adjusted for autocorrelation? (Newey-West, not naive mean/std)
+- Are bootstrap confidence intervals reported? (Point estimate Sharpe is meaningless)
+- Are transaction costs included? (Gross Sharpe vs net Sharpe can differ enormously)
+- Is the evaluation walk-forward? (Single-split backtest is not evidence)
+- Has the multiple testing problem been addressed? (Deflated Sharpe Ratio if many strategies tested)
+
+### Code Audit Trigger
+**Activate when:** Query mentions audit, scan, check code, verify pipeline, lookahead check, temporal safety review.
+**Action:** Recommend spawning `nr-quant-auditor` agent for automated scanning.
+**Available modes:** TEMPORAL_AUDIT, FEATURE_AUDIT, VALIDATION_AUDIT, FULL_AUDIT.
+**Output location:** `.planning/audit/AUDIT-{mode}-{timestamp}.md`
+
 ## ML Metrics Reference
 
 | Metric | Use When | Watch Out For |

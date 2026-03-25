@@ -52,7 +52,131 @@ When quant is detected, this roadmapper enforces **validation-before-modeling ph
 - "Model performance tested across at least 2 distinct market regimes"
 - "Baseline model evaluated and documented before complex model development begins"
 
-**Other domains** — apply standard phase ordering based on project type and constraints.
+**Web Development** — activate when CONTEXT.md contains: React, Vue, Angular, CSS, Tailwind, component, layout, responsive, LCP, CLS, INP, hydration, SSR, SSG, Next.js, Nuxt, webpack, Vite, bundle, SPA, accessibility, WCAG, frontend.
+
+When web is detected, this roadmapper enforces **component-first phase ordering:**
+- Phase 1: Project scaffold, routing, layout shell, design system integration
+- Phase 2: Core components and shared state management
+- Phase 3+: Feature pages built on established component foundation
+- Performance phase: Bundle optimization, lazy loading, Core Web Vitals tuning
+- Final phase: Accessibility audit, cross-browser testing, production deploy
+
+**Web roadmap principles:**
+- Component library before feature pages
+- Responsive behavior defined per phase, not bolted on at the end
+- Performance budget established in Phase 1 and monitored every phase
+- Accessibility is continuous, not a final-phase checkbox
+
+- Load `references/web-reasoning.md` for roadmap context
+- Load `references/web-performance.md` for performance phase planning
+
+**API/Backend** — activate when CONTEXT.md contains: endpoint, REST, GraphQL, gRPC, auth, JWT, OAuth, database, ORM, Prisma, Drizzle, migration, middleware, rate limit, CORS, webhook, microservice, API gateway.
+
+When API/Backend is detected, this roadmapper enforces **schema-first phase ordering:**
+- Phase 1: Data model design, migration setup, auth infrastructure
+- Phase 2: Core CRUD endpoints with validation and error handling
+- Phase 3+: Feature endpoints, business logic, integrations
+- Hardening phase: Rate limiting, caching, performance optimization
+- Final phase: API documentation, backward compatibility verification, production deploy
+
+**API roadmap principles:**
+- Data model and auth locked before feature endpoints
+- Every phase produces working, testable endpoints
+- Backward compatibility checked at every phase boundary
+- Error handling and validation are per-endpoint, not per-phase
+
+- Load `references/api-reasoning.md` for roadmap context
+- Load `references/api-design.md` for API design phase planning
+
+**Systems/Infrastructure** — activate when CONTEXT.md contains: Kubernetes, Docker, Terraform, Ansible, CI/CD, deploy, container, pod, helm, monitoring, Prometheus, Grafana, observability, SRE, incident, SLO, SLA, cloud, AWS, GCP, Azure, load balancer.
+
+When systems/infra is detected, this roadmapper enforces **observability-first phase ordering:**
+- Phase 1: Base infrastructure provisioning, networking, security baseline
+- Phase 2: CI/CD pipeline, deployment automation, rollback procedures
+- Phase 3: Monitoring, logging, alerting infrastructure
+- Phase 4+: Application deployment, scaling, optimization
+- Final phase: Disaster recovery testing, runbook documentation, handoff
+
+**Systems roadmap principles:**
+- Security and networking before application deployment
+- CI/CD before manual deployments (automate from the start)
+- Monitoring before optimization (can't improve what you can't measure)
+- Rollback tested before production traffic
+
+- Load `references/systems-reasoning.md` for roadmap context
+- Load `references/systems-reliability.md` for reliability phase planning
+
+**Mobile Development** — activate when CONTEXT.md contains: React Native, Flutter, iOS, Android, Swift, Kotlin, mobile, app, Expo, Xcode, Gradle, CocoaPods, offline, push notification, deep link, app store, TestFlight, APK, IPA.
+
+When mobile is detected, this roadmapper enforces **navigation-first phase ordering:**
+- Phase 1: Project setup, navigation architecture, core screen shells
+- Phase 2: Data layer, offline storage, sync infrastructure
+- Phase 3+: Feature screens built on established navigation and data layer
+- Polish phase: Animations, haptics, platform-specific refinements
+- Final phase: App store preparation, TestFlight/internal testing, submission
+
+**Mobile roadmap principles:**
+- Navigation architecture before feature screens
+- Offline behavior defined from the start, not retrofitted
+- Platform parity checked at every phase boundary
+- App store guidelines reviewed before building features that might violate them
+
+- Load `references/mobile-reasoning.md` for roadmap context
+- Load `references/mobile-architecture.md` for architecture phase planning
+
+**Desktop Development** — activate when CONTEXT.md contains: Electron, Tauri, desktop, window management, IPC, tray, system tray, main process, renderer, native app, installer, auto-update, NSIS, DMG, AppImage, menubar, titlebar.
+
+When desktop is detected, this roadmapper enforces **process-architecture-first phase ordering:**
+- Phase 1: Main/renderer process setup, IPC channels, window management
+- Phase 2: Core features with proper IPC communication
+- Phase 3+: Advanced features, native integrations, system tray
+- Distribution phase: Installer creation, code signing, auto-update
+- Final phase: Cross-platform testing, memory profiling, release
+
+**Desktop roadmap principles:**
+- Process architecture before feature windows
+- IPC channel design before cross-process communication
+- Auto-update mechanism planned early, not bolted on
+- Cross-platform testing at every phase, not just final phase
+
+- Load `references/desktop-reasoning.md` for roadmap context
+- Load `references/desktop-architecture.md` for architecture phase planning
+
+**Data Analysis** — activate when CONTEXT.md contains: pandas, numpy, scipy, statistics, EDA, exploratory data analysis, visualization, matplotlib, seaborn, plotly, hypothesis testing, p-value, A/B test, regression analysis, correlation, distribution, Jupyter, notebook.
+
+When data analysis is detected, this roadmapper enforces **data-understanding-first phase ordering:**
+- Phase 1: Data acquisition, profiling, quality assessment, environment setup
+- Phase 2: Exploratory data analysis, visualization, initial hypotheses
+- Phase 3: Methodology selection, assumption verification, formal analysis
+- Phase 4+: Advanced analysis, modeling, validation
+- Final phase: Results documentation, visualization production, reproducibility verification
+
+**Data analysis roadmap principles:**
+- Data profiling before any analysis
+- Methodology selected based on data characteristics, not predetermined
+- Reproducibility ensured at every phase (seeds, versions, documentation)
+- Results validated before presentation
+
+- Load `references/data-analysis-reasoning.md` for roadmap context
+- Load `references/data-analysis-methods.md` for methodology phase planning
+
+**Data Engineering** — activate when CONTEXT.md contains: pipeline, ETL, ELT, Airflow, Spark, dbt, Kafka, Flink, warehouse, BigQuery, Snowflake, Redshift, data lake, Parquet, Avro, schema registry, orchestration, DAG, data quality, lineage.
+
+When data engineering is detected, this roadmapper enforces **schema-and-contract-first phase ordering:**
+- Phase 1: Source analysis, schema design, data contracts, quality expectations
+- Phase 2: Ingestion pipeline with schema validation and quality checks
+- Phase 3: Transformation logic with idempotency and intermediate quality gates
+- Phase 4+: Serving layer, consumer integration, optimization
+- Final phase: Monitoring, alerting, SLA tracking, documentation
+
+**Data engineering roadmap principles:**
+- Schema and data contracts before pipeline implementation
+- Quality gates at every pipeline stage, not just the end
+- Idempotency built in from the start, not retrofitted
+- Monitoring deployed with the pipeline, not after incidents occur
+
+- Load `references/data-engineering-reasoning.md` for roadmap context
+- Load `references/data-engineering-pipelines.md` for pipeline phase planning
 
 
 ## Brain-Constrained Roadmap Generation

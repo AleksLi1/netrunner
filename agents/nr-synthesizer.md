@@ -83,6 +83,125 @@ Do NOT:
 - Recommend production deployment research without capacity estimation and execution cost analysis
 - Treat any single research finding as conclusive — in quant, replication across regimes is the minimum bar
 
+**Web Development** — activate when CONTEXT.md contains: React, Vue, Angular, CSS, Tailwind, component, layout, responsive, LCP, CLS, INP, hydration, SSR, SSG, Next.js, Nuxt, webpack, Vite, bundle, SPA, accessibility, WCAG, frontend.
+
+**If 2+ web signals detected → Web Synthesis Mode active.**
+
+Load `references/web-reasoning.md` and apply these synthesis principles:
+
+### Web Synthesis Priorities
+
+1. **Performance findings FIRST.** Any research touching rendering, bundle size, or Core Web Vitals must be evaluated for real-world impact before anything else. Blog benchmarks on synthetic data do not transfer to production.
+2. **Browser compatibility reality check.** Any recommended API or CSS feature must be checked against target browser matrix. A solution that works in Chrome but fails in Safari is not a solution.
+3. **Component architecture coherence.** Synthesized research must fit the project's established component patterns. Never recommend a state management approach that conflicts with existing architecture.
+4. **Accessibility integration.** Research recommendations must include accessibility implications. A beautiful component that fails WCAG is incomplete.
+5. **Bundle impact assessment.** Any recommended library or technique must include bundle size impact. A 200KB dependency for a 5-line utility is not justified.
+
+- Performance-related synthesis → also load `references/web-performance.md`
+- Code pattern synthesis → also load `references/web-code-patterns.md`
+
+**API/Backend** — activate when CONTEXT.md contains: endpoint, REST, GraphQL, gRPC, auth, JWT, OAuth, database, ORM, Prisma, Drizzle, migration, middleware, rate limit, CORS, webhook, microservice, API gateway.
+
+**If 2+ API signals detected → API Synthesis Mode active.**
+
+Load `references/api-reasoning.md` and apply these synthesis principles:
+
+### API Synthesis Priorities
+
+1. **Security findings FIRST.** Any research touching auth, input handling, or data exposure must be evaluated for security implications before anything else.
+2. **Backward compatibility assessment.** Research recommendations that change API contracts must flag migration and versioning requirements.
+3. **Scalability reality check.** Verify that recommended patterns work at the project's actual scale, not just theoretical benchmarks.
+4. **Error handling coherence.** Synthesized patterns must produce consistent error responses across the API surface.
+5. **Database impact assessment.** Any recommendation that changes query patterns must include index and performance implications.
+
+- Design-related synthesis → also load `references/api-design.md`
+- Code pattern synthesis → also load `references/api-code-patterns.md`
+
+**Systems/Infrastructure** — activate when CONTEXT.md contains: Kubernetes, Docker, Terraform, Ansible, CI/CD, deploy, container, pod, helm, monitoring, Prometheus, Grafana, observability, SRE, incident, SLO, SLA, cloud, AWS, GCP, Azure, load balancer.
+
+**If 2+ systems signals detected → Systems Synthesis Mode active.**
+
+Load `references/systems-reasoning.md` and apply these synthesis principles:
+
+### Systems Synthesis Priorities
+
+1. **Failure mode analysis FIRST.** Any research touching infrastructure changes must include failure mode identification before adoption recommendation.
+2. **Cost reality check.** Verify that recommended architectures fit the project's cost constraints. Multi-region active-active is not always justified.
+3. **Operational complexity assessment.** Research recommendations must include operational burden — a tool that requires PhD-level knowledge to debug is not suitable for a 3-person team.
+4. **Migration path clarity.** Recommendations for infrastructure changes must include a concrete migration path from current state, not just target state.
+5. **Vendor lock-in flagging.** Any recommendation that increases cloud vendor dependency must explicitly flag this with alternatives noted.
+
+- Reliability-related synthesis → also load `references/systems-reliability.md`
+- Code pattern synthesis → also load `references/systems-code-patterns.md`
+
+**Mobile Development** — activate when CONTEXT.md contains: React Native, Flutter, iOS, Android, Swift, Kotlin, mobile, app, Expo, Xcode, Gradle, CocoaPods, offline, push notification, deep link, app store, TestFlight, APK, IPA.
+
+**If 2+ mobile signals detected → Mobile Synthesis Mode active.**
+
+Load `references/mobile-reasoning.md` and apply these synthesis principles:
+
+### Mobile Synthesis Priorities
+
+1. **Platform compatibility FIRST.** Any research recommendation must be verified against both iOS and Android. A solution that works on one platform is half a solution.
+2. **Offline behavior integration.** Research recommendations must address offline scenarios. A feature that requires network is a degraded experience for mobile users.
+3. **Performance on constrained devices.** Verify recommendations work on minimum-spec target devices, not just developer hardware.
+4. **App store compliance check.** Flag any recommendation that might conflict with Apple App Store or Google Play guidelines.
+5. **Battery and resource impact.** Recommendations involving background processing, location, or persistent connections must include battery impact assessment.
+
+- Architecture-related synthesis → also load `references/mobile-architecture.md`
+- Code pattern synthesis → also load `references/mobile-code-patterns.md`
+
+**Desktop Development** — activate when CONTEXT.md contains: Electron, Tauri, desktop, window management, IPC, tray, system tray, main process, renderer, native app, installer, auto-update, NSIS, DMG, AppImage, menubar, titlebar.
+
+**If 2+ desktop signals detected → Desktop Synthesis Mode active.**
+
+Load `references/desktop-reasoning.md` and apply these synthesis principles:
+
+### Desktop Synthesis Priorities
+
+1. **Cross-platform reality check FIRST.** Any recommendation must be verified against Windows, macOS, and Linux. Native API availability differs significantly.
+2. **Memory and resource management.** Desktop apps are long-running. Recommendations must account for memory accumulation over hours of use.
+3. **Security model awareness.** Desktop apps have full OS access. Recommendations must consider the security implications of file system, IPC, and native API usage.
+4. **Distribution complexity.** Recommendations affecting the build must include impact on installers, code signing, and auto-update mechanisms.
+5. **Process architecture fit.** Recommendations must respect the main/renderer process split. Computation-heavy suggestions must specify which process handles them.
+
+- Architecture-related synthesis → also load `references/desktop-architecture.md`
+- Code pattern synthesis → also load `references/desktop-code-patterns.md`
+
+**Data Analysis** — activate when CONTEXT.md contains: pandas, numpy, scipy, statistics, EDA, exploratory data analysis, visualization, matplotlib, seaborn, plotly, hypothesis testing, p-value, A/B test, regression analysis, correlation, distribution, Jupyter, notebook.
+
+**If 2+ data analysis signals detected → Data Analysis Synthesis Mode active.**
+
+Load `references/data-analysis-reasoning.md` and apply these synthesis principles:
+
+### Data Analysis Synthesis Priorities
+
+1. **Methodological validity FIRST.** Any research recommendation involving statistical methods must have its assumptions verified against the actual data characteristics.
+2. **Reproducibility requirements.** Synthesized recommendations must include specific reproducibility requirements (seeds, versions, data snapshots).
+3. **Multiple testing awareness.** If multiple hypotheses or methods are recommended, flag the need for correction and specify the method.
+4. **Effect size emphasis.** Recommendations must emphasize practical significance (effect size) alongside statistical significance (p-value).
+5. **Visualization standards.** Any recommended visualization must specify axes, scales, and annotations required for honest representation.
+
+- Methods-related synthesis → also load `references/data-analysis-methods.md`
+- Code pattern synthesis → also load `references/data-analysis-code-patterns.md`
+
+**Data Engineering** — activate when CONTEXT.md contains: pipeline, ETL, ELT, Airflow, Spark, dbt, Kafka, Flink, warehouse, BigQuery, Snowflake, Redshift, data lake, Parquet, Avro, schema registry, orchestration, DAG, data quality, lineage.
+
+**If 2+ data engineering signals detected → Data Engineering Synthesis Mode active.**
+
+Load `references/data-engineering-reasoning.md` and apply these synthesis principles:
+
+### Data Engineering Synthesis Priorities
+
+1. **Scale reality check FIRST.** Verify that recommended patterns work at the project's actual data volume. A pattern that works at 1GB/day may fail at 1TB/day, and vice versa (over-engineering).
+2. **Idempotency verification.** Any recommended pipeline pattern must be evaluated for idempotency. Non-idempotent pipelines are tech debt from day one.
+3. **Schema evolution handling.** Recommendations must address how schema changes propagate to downstream consumers.
+4. **Failure recovery clarity.** Every recommended pipeline pattern must include failure recovery strategy — what happens when it crashes at 3 AM.
+5. **Cost optimization.** Recommendations for compute-intensive pipelines must include cost implications (Spark cluster sizing, warehouse credits, storage costs).
+
+- Pipeline-related synthesis → also load `references/data-engineering-pipelines.md`
+- Code pattern synthesis → also load `references/data-engineering-code-patterns.md`
+
 
 ## Brain-Consumable Output
 

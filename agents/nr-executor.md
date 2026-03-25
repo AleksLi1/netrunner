@@ -44,7 +44,176 @@ When quant is detected:
 - [ ] Evaluation includes transaction costs
 - [ ] Data loading respects point-in-time constraints
 
-**Other domains** — apply standard execution discipline with atomic commits and deviation handling.
+**Feature engineering execution gates (when implementing features):**
+- Load `references/feature-engineering.md` for temporal-safe construction patterns
+- Before committing feature code, verify:
+  - [ ] Every `rolling()` preceded by `shift(1)` or equivalent temporal guard
+  - [ ] No normalization fitted on data that includes future observations
+  - [ ] Feature warm-up period explicitly excluded from evaluation (first N rows dropped for rolling(N))
+  - [ ] Cross-sectional features computed only on assets available at each timestamp
+  - [ ] No `fillna(method='bfill')` or `.bfill()` — backfill is future data
+  - [ ] IC evaluation uses walk-forward, not single split
+  - [ ] Multiple testing correction applied if selecting from many features
+
+**Training pipeline execution gates (when implementing training):**
+- Load `references/ml-training.md` for architecture and training patterns
+- Before committing training code, verify:
+  - [ ] DataLoader `shuffle=False` for time series data
+  - [ ] Loss function aligned with actual trading objective (not just MSE by default)
+  - [ ] Early stopping monitors validation metric, not training loss
+  - [ ] Gradient clipping enabled (`max_norm=1.0` as default)
+  - [ ] Random seeds set and logged for ALL sources: `random`, `numpy`, `torch`, `cuda`
+  - [ ] Hyperparameter search uses nested walk-forward, not test set
+  - [ ] Model checkpoints saved at best validation metric
+
+**Expanded code review template:** Load `references/quant-code-patterns.md` (all 20 patterns) as the code review checklist. For each file modified, scan against the anti-pattern summary table.
+
+**Web Development** — activate when CONTEXT.md contains: React, Vue, Angular, CSS, Tailwind, component, layout, responsive, LCP, CLS, INP, hydration, SSR, SSG, Next.js, Nuxt, webpack, Vite, bundle, SPA, accessibility, WCAG, frontend.
+
+When web is detected:
+- Load `references/web-code-patterns.md` (all patterns) as the code review checklist. For each file modified, scan against the anti-pattern summary table.
+- Load `references/web-reasoning.md` for implementation context
+- Performance-sensitive code → also load `references/web-performance.md`
+- Apply **frontend execution discipline:**
+
+1. **Component-first commits:** Each commit should produce a working component or meaningful component improvement. Never commit half a component.
+2. **Responsive implementation:** Every UI element must be implemented responsive from the start. Never write desktop-only CSS with plans to "add responsive later."
+3. **Accessibility in implementation:** Semantic HTML, ARIA labels, and keyboard navigation must be implemented as part of each component, not as a separate pass.
+4. **Performance guard rails:** Check bundle size impact after adding dependencies. Lazy-load routes and heavy components by default.
+5. **State management discipline:** Follow the project's established state management pattern. Never introduce a second state management approach without explicit plan approval.
+
+**Web execution code review gates:**
+- [ ] Components use semantic HTML (not div-for-everything)
+- [ ] Event handlers have meaningful implementations (no empty onClick)
+- [ ] Loading and error states handled for async operations
+- [ ] No inline styles where CSS classes should be used
+- [ ] Images have explicit width/height attributes
+
+**API/Backend** — activate when CONTEXT.md contains: endpoint, REST, GraphQL, gRPC, auth, JWT, OAuth, database, ORM, Prisma, Drizzle, migration, middleware, rate limit, CORS, webhook, microservice, API gateway.
+
+When API/Backend is detected:
+- Load `references/api-code-patterns.md` (all patterns) as the code review checklist. For each file modified, scan against the anti-pattern summary table.
+- Load `references/api-reasoning.md` for implementation context
+- Design/architecture code → also load `references/api-design.md`
+- Apply **backend execution discipline:**
+
+1. **Schema-first development:** Write and run migrations before writing endpoint code. Never write endpoints that assume a schema that doesn't exist yet.
+2. **Input validation on every endpoint:** Validate request body, query params, and path params. Never trust client input.
+3. **Error handling consistency:** Use the project's established error response format. Every endpoint must handle validation errors, not-found, unauthorized, and internal errors.
+4. **Transaction boundaries:** Wrap multi-step mutations in database transactions. Never leave partial state on failure.
+5. **Query optimization:** Use eager loading for known N+1 patterns. Log query count per request during development.
+
+**API execution code review gates:**
+- [ ] Input validation present on all endpoints
+- [ ] Error handling returns consistent error format
+- [ ] Database queries use parameterized queries (no string interpolation)
+- [ ] Sensitive data not exposed in responses or logs
+- [ ] Rate limiting applied to public endpoints
+
+**Systems/Infrastructure** — activate when CONTEXT.md contains: Kubernetes, Docker, Terraform, Ansible, CI/CD, deploy, container, pod, helm, monitoring, Prometheus, Grafana, observability, SRE, incident, SLO, SLA, cloud, AWS, GCP, Azure, load balancer.
+
+When systems/infra is detected:
+- Load `references/systems-code-patterns.md` (all patterns) as the IaC review checklist. For each file modified, scan against the anti-pattern summary table.
+- Load `references/systems-reasoning.md` for implementation context
+- Reliability-critical code → also load `references/systems-reliability.md`
+- Apply **infrastructure execution discipline:**
+
+1. **Plan before apply:** Always run `terraform plan` or equivalent dry-run before applying infrastructure changes. Never apply without reviewing the plan.
+2. **Secrets management:** Never commit secrets to code. Use vault, KMS, or secret manager references. Environment variables in IaC must reference secret stores.
+3. **Resource tagging:** Every provisioned resource must have cost-tracking and ownership tags. Untagged resources become orphaned costs.
+4. **Health checks on every service:** Implement liveness and readiness probes for all containerized services. Default health check endpoints are insufficient.
+5. **Rollback-ready deploys:** Every deployment must have a documented and tested rollback command or procedure ready before execution.
+
+**Systems execution code review gates:**
+- [ ] No hardcoded secrets in IaC or config files
+- [ ] Resource limits (CPU, memory) set on all containers
+- [ ] Network policies restrict traffic to necessary paths
+- [ ] IAM roles follow least-privilege principle
+- [ ] Monitoring and alerting configured for new services
+
+**Mobile Development** — activate when CONTEXT.md contains: React Native, Flutter, iOS, Android, Swift, Kotlin, mobile, app, Expo, Xcode, Gradle, CocoaPods, offline, push notification, deep link, app store, TestFlight, APK, IPA.
+
+When mobile is detected:
+- Load `references/mobile-code-patterns.md` (all patterns) as the code review checklist. For each file modified, scan against the anti-pattern summary table.
+- Load `references/mobile-reasoning.md` for implementation context
+- Architecture/offline code → also load `references/mobile-architecture.md`
+- Apply **mobile execution discipline:**
+
+1. **Cleanup in every effect:** Every useEffect or equivalent must have a cleanup function. Subscription leaks cause crashes and battery drain.
+2. **Offline-first implementation:** Data fetching must check cache first, then network. Never assume network availability.
+3. **Platform-aware code:** Use Platform.select or equivalent for platform differences. Never hardcode iOS-specific paths or behaviors.
+4. **Image optimization:** All images must specify dimensions and use appropriate resolution for device density. Unoptimized images cause OOM crashes.
+5. **Permission handling:** Request permissions in context (not on app launch). Handle denial gracefully with fallback behavior.
+
+**Mobile execution code review gates:**
+- [ ] useEffect cleanup functions present for all subscriptions
+- [ ] Network calls have timeout and error handling
+- [ ] Images have explicit dimensions and density-appropriate sources
+- [ ] Keyboard avoidance implemented for all input screens
+- [ ] Deep link params validated and sanitized
+
+**Desktop Development** — activate when CONTEXT.md contains: Electron, Tauri, desktop, window management, IPC, tray, system tray, main process, renderer, native app, installer, auto-update, NSIS, DMG, AppImage, menubar, titlebar.
+
+When desktop is detected:
+- Load `references/desktop-code-patterns.md` (all patterns) as the code review checklist. For each file modified, scan against the anti-pattern summary table.
+- Load `references/desktop-reasoning.md` for implementation context
+- Architecture/IPC code → also load `references/desktop-architecture.md`
+- Apply **desktop execution discipline:**
+
+1. **IPC channel validation:** Every IPC handler must validate the sender and sanitize arguments. Never trust renderer-to-main messages without validation.
+2. **Window lifecycle management:** Track all BrowserWindow instances. Close and nullify references on window close. Leaked windows consume memory indefinitely.
+3. **Cross-platform file paths:** Use path.join and app.getPath for all file operations. Never hardcode path separators or user directory paths.
+4. **Main process stability:** Main process crashes kill the entire app. Use try/catch on all main process operations and log errors before crashing.
+5. **Context isolation:** Enable contextIsolation and disable nodeIntegration in renderer. Expose only necessary APIs through preload scripts.
+
+**Desktop execution code review gates:**
+- [ ] IPC handlers validate sender and sanitize arguments
+- [ ] BrowserWindow references cleaned up on close
+- [ ] File paths use platform-agnostic path construction
+- [ ] Main process has error handling on all operations
+- [ ] Context isolation enabled, nodeIntegration disabled
+
+**Data Analysis** — activate when CONTEXT.md contains: pandas, numpy, scipy, statistics, EDA, exploratory data analysis, visualization, matplotlib, seaborn, plotly, hypothesis testing, p-value, A/B test, regression analysis, correlation, distribution, Jupyter, notebook.
+
+When data analysis is detected:
+- Load `references/data-analysis-code-patterns.md` (all patterns) as the code review checklist. For each file modified, scan against the anti-pattern summary table.
+- Load `references/data-analysis-reasoning.md` for implementation context
+- Methods/statistical code → also load `references/data-analysis-methods.md`
+- Apply **analytical execution discipline:**
+
+1. **Reproducibility first:** Set random seeds at the top of every script/notebook. Pin all library versions. Document the data version used.
+2. **Assumption checks before tests:** Before running any statistical test, explicitly verify its assumptions on the data. Document results.
+3. **Vectorized operations:** Use pandas/numpy vectorized operations. Never iterate rows with for loops for computations.
+4. **Visualization standards:** Every chart must have labeled axes, title, legend (if multiple series), and appropriate scale. Never output a chart without labels.
+5. **Intermediate verification:** Print shape, dtypes, and describe() after every major transformation. Chain bugs are invisible without intermediate checks.
+
+**Data analysis execution code review gates:**
+- [ ] Random seeds set for all stochastic operations
+- [ ] Statistical assumptions checked before test execution
+- [ ] Visualizations have labeled axes and appropriate scales
+- [ ] No iterrow() or apply() where vectorized operations work
+- [ ] Missing data handling documented at each step
+
+**Data Engineering** — activate when CONTEXT.md contains: pipeline, ETL, ELT, Airflow, Spark, dbt, Kafka, Flink, warehouse, BigQuery, Snowflake, Redshift, data lake, Parquet, Avro, schema registry, orchestration, DAG, data quality, lineage.
+
+When data engineering is detected:
+- Load `references/data-engineering-code-patterns.md` (all patterns) as the code review checklist. For each file modified, scan against the anti-pattern summary table.
+- Load `references/data-engineering-reasoning.md` for implementation context
+- Pipeline/architecture code → also load `references/data-engineering-pipelines.md`
+- Apply **pipeline execution discipline:**
+
+1. **Idempotent writes:** Every write operation must be idempotent — use MERGE/upsert, partition overwrite, or dedup-on-write. Never append without dedup.
+2. **Schema enforcement:** Validate input and output schemas at pipeline boundaries. Use schema registry or explicit validation.
+3. **Bounded queries:** Never SELECT * without LIMIT during development. All production queries must have partition pruning or date bounds.
+4. **Data quality assertions:** Add row count checks, null rate checks, and value range assertions at each pipeline stage. Silent data corruption is worse than a crash.
+5. **Temp resource cleanup:** All temporary tables, staging files, and intermediate outputs must be cleaned up on pipeline completion (success or failure).
+
+**Data engineering execution code review gates:**
+- [ ] Write operations are idempotent (upsert, partition overwrite, or dedup)
+- [ ] Schema validation at pipeline boundaries
+- [ ] No unbounded SELECT * queries
+- [ ] Data quality assertions at each stage
+- [ ] Temp resources cleaned up in finally/on_failure handlers
 
 
 ## Brain Deviation Reporting

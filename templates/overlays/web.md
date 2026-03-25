@@ -114,3 +114,67 @@ Typical web project phases:
 7. **Accessibility Audit** — screen reader testing, keyboard nav, contrast checks
 8. **Cross-Browser / Device Testing** — compatibility matrix validation
 9. **SEO + Analytics** — meta tags, structured data, tracking integration
+
+## Reasoning Triggers — Deep References
+
+These triggers activate loading of specialized reference files for deep knowledge. They are evaluated AFTER the persona is activated and BEFORE avenue generation.
+
+### Trigger: Performance Investigation
+
+**Activate when:** LCP, CLS, INP, TTFB, FCP, Core Web Vitals, Lighthouse, PageSpeed, slow, performance, bundle size, loading time, Time to Interactive, render blocking, waterfall
+
+**Load:** `references/web-performance.md` for Core Web Vitals optimization, rendering patterns, bundle optimization, and image optimization strategies.
+
+**Gate questions before proceeding:**
+- Which specific metric is failing? (Do not generalize "it's slow" — identify LCP, INP, CLS, or TTFB)
+- Has the current performance been measured with both lab tools (Lighthouse) and field data (CrUX/RUM)?
+- Is this a loading performance problem or a runtime interactivity problem?
+- What is the performance budget for this page/route?
+
+### Trigger: Component Architecture Review
+
+**Activate when:** refactor, component design, architecture, prop drilling, state management, re-render, composition, design system, component library, reusable
+
+**Load:** `references/web-code-patterns.md` for correct/incorrect component patterns, state management patterns, and common React anti-patterns.
+
+**Gate questions before proceeding:**
+- What is the current component tree depth and where are the render boundaries?
+- Are there components with more than 10 props that should be decomposed?
+- Is any state stored that could be derived from other state?
+- Are there prop drilling chains deeper than 3 levels that need a context boundary or composition restructure?
+
+### Trigger: Accessibility Audit
+
+**Activate when:** a11y, accessibility, WCAG, screen reader, keyboard navigation, aria, focus management, alt text, color contrast, reduced motion, assistive technology
+
+**Load:** `references/web-performance.md` (Section 5: Accessibility Performance) for focus management, live regions, reduced motion patterns, and keyboard interaction patterns. Also load `references/web-code-patterns.md` (Pattern 8: Missing Accessible Labels) for labeling patterns.
+
+**Gate questions before proceeding:**
+- What WCAG conformance level is targeted (A, AA, or AAA)?
+- Has an automated scan (axe-core, Lighthouse accessibility) been run to catch mechanical issues?
+- Has manual keyboard testing been performed (Tab through all interactive elements)?
+- Has the page been tested with at least one screen reader (NVDA, VoiceOver)?
+
+### Trigger: Bundle Optimization
+
+**Activate when:** bundle size, webpack, vite, build size, code splitting, tree shaking, dynamic import, lazy loading, chunk, vendor bundle, dependency audit
+
+**Load:** `references/web-performance.md` (Section 3: Bundle Optimization) for code splitting strategies, tree shaking verification, and compression patterns. Also load `references/web-code-patterns.md` (Pattern 4: Fetch in Render Path) for data loading patterns that affect bundle strategy.
+
+**Gate questions before proceeding:**
+- Has a bundle analyzer been run to identify the top 5 largest modules?
+- What is the current total JS size (compressed) and the per-route budget?
+- Are there duplicate dependencies or multiple libraries solving the same problem?
+- Is tree shaking verified to be working (ESM imports, no CJS barrel re-exports)?
+
+### Trigger: SSR / Hydration Debugging
+
+**Activate when:** hydration, SSR, server-side rendering, streaming, server component, client component, "Text content does not match", island architecture, Next.js, Nuxt, Remix, Astro
+
+**Load:** `references/web-code-patterns.md` (Pattern 12: Hydration Mismatch) for deterministic rendering patterns. Also load `references/web-performance.md` (Section 2: Rendering Patterns) for choosing the right rendering strategy.
+
+**Gate questions before proceeding:**
+- Is the hydration error reproducible, or does it only happen intermittently?
+- Are there any non-deterministic values used during render (Date.now(), Math.random(), window.innerWidth)?
+- Is the rendering strategy (CSR/SSR/SSG/ISR) appropriate for this page's content type and update frequency?
+- Are client-only components properly marked with dynamic imports or client directives?

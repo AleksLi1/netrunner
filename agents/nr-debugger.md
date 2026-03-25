@@ -61,7 +61,189 @@ When model barely beats random (e.g., 52% vs 50%):
 3. Check prediction confidence distribution — flat = model isn't learning
 4. Test: progressive feature ablation — which features contribute to the 2% edge?
 
-**Other domains** — apply standard systematic debugging with scientific method.
+**Protocol 5: Feature Engineering Debugging**
+When features don't produce expected IC or model performance is unexpectedly poor:
+1. Check IC computation — is it walk-forward or computed on full dataset? Reference `references/feature-engineering.md` for correct IC methodology
+2. Check feature warm-up — are first N rows (for rolling(N)) excluded? Partial-window features are unreliable
+3. Check normalization scope — expanding window or global? Global normalization leaks future distribution info
+4. Check cross-sectional features — is the asset universe correct at each timestamp? (survivorship bias)
+5. Run feature ablation using walk-forward (not single split) — identify which features actually contribute
+6. Compare feature distributions across regimes — distribution shift between regimes indicates fragile features
+
+**Protocol 6: Metric Calculation Debugging**
+When reported metrics seem wrong or inconsistent:
+1. Reference `references/strategy-metrics.md` for correct formulas — verify implementation matches
+2. Check Sharpe annualization: should use sqrt(252) for daily data, not sqrt(365)
+3. Check drawdown computation: must use equity curve (cumulative product of 1+returns), not log returns
+4. Check if autocorrelation adjustment is needed (Newey-West for Sharpe)
+5. Check transaction cost inclusion: gross vs net metrics can differ enormously
+6. Verify walk-forward efficiency: if WFE > 0.9, suspect data leakage; if WFE < 0.3, suspect overfitting
+
+**Automated scanning support:** For systematic debugging of quant code, spawn `nr-quant-auditor`:
+```
+Task(subagent_type="nr-quant-auditor", description="Debug-driven quant audit",
+  prompt="Run FULL_AUDIT. Focus on [specific issue type]. Write to .planning/audit/.")
+```
+Use audit findings to narrow the search space for the root cause.
+
+**Web Development** — activate when CONTEXT.md contains: React, Vue, Angular, CSS, Tailwind, component, layout, responsive, LCP, CLS, INP, hydration, SSR, SSG, Next.js, Nuxt, webpack, Vite, bundle, SPA, accessibility, WCAG, frontend.
+
+When web is detected:
+- Load `references/web-code-patterns.md` for concrete correct/incorrect code examples — use the anti-pattern summary table as a diagnostic scanning checklist
+- Load `references/web-reasoning.md` for expert reasoning triggers
+- Performance issues → also load `references/web-performance.md`
+- Apply **frontend debugging discipline:**
+
+1. **Console-first diagnosis:** Check browser console for errors and warnings before forming any hypothesis. Most frontend bugs announce themselves in console.
+2. **Network tab audit:** For data-fetching bugs, inspect Network tab for failed requests, CORS errors, and payload mismatches before blaming application code.
+3. **Component isolation:** Use React DevTools or framework equivalent to isolate the failing component. Reproduce in isolation before debugging in full app context.
+4. **Hydration mismatch protocol:** For SSR apps, compare server-rendered HTML with client-rendered DOM. Check for Date, Math.random, or window references in server code.
+5. **CSS specificity diagnosis:** For styling bugs, use computed styles inspector. Specificity conflicts are the most common cause of "CSS not working."
+
+**Web-specific failure signatures:**
+- Blank page → JS error blocking render (check console + network)
+- Layout shift → Images/fonts without dimensions or late-loading content
+- Infinite re-render → Unstable reference in useEffect dependency array
+- Hydration mismatch → Server/client state divergence (usually Date or window)
+- Mobile layout broken → Missing viewport meta or fixed pixel widths
+
+- Load `references/diagnostic-taxonomy.md` → use "Web Failures" section
+
+**API/Backend** — activate when CONTEXT.md contains: endpoint, REST, GraphQL, gRPC, auth, JWT, OAuth, database, ORM, Prisma, Drizzle, migration, middleware, rate limit, CORS, webhook, microservice, API gateway.
+
+When API/Backend is detected:
+- Load `references/api-code-patterns.md` for concrete correct/incorrect code examples
+- Load `references/api-reasoning.md` for expert reasoning triggers
+- Design/architecture issues → also load `references/api-design.md`
+- Apply **backend debugging discipline:**
+
+1. **Request lifecycle tracing:** Trace the failing request from ingress through middleware, handler, database, and response. Identify exactly where it fails.
+2. **SQL analysis:** For slow or incorrect queries, run EXPLAIN ANALYZE. Check for missing indexes, full table scans, and N+1 patterns.
+3. **Auth token inspection:** For auth failures, decode the JWT at jwt.io. Check exp, aud, iss claims. Most auth bugs are token configuration, not code.
+4. **Connection pool monitoring:** For intermittent timeouts, check connection pool utilization. Pool exhaustion causes cascading failures.
+5. **Concurrency isolation:** For data inconsistency, check for race conditions. Add request serialization or transaction wrapping to reproduce.
+
+**API-specific failure signatures:**
+- 500 on POST → Unhandled validation error or missing null check
+- Slow queries → Missing index or N+1 (check EXPLAIN ANALYZE)
+- CORS error → Missing OPTIONS handler or wrong Access-Control headers
+- Intermittent timeout → Connection pool exhaustion or slow downstream dependency
+- Data inconsistency → Race condition or missing transaction boundary
+
+- Load `references/diagnostic-taxonomy.md` → use "API Failures" section
+
+**Systems/Infrastructure** — activate when CONTEXT.md contains: Kubernetes, Docker, Terraform, Ansible, CI/CD, deploy, container, pod, helm, monitoring, Prometheus, Grafana, observability, SRE, incident, SLO, SLA, cloud, AWS, GCP, Azure, load balancer.
+
+When systems/infra is detected:
+- Load `references/systems-code-patterns.md` for correct/incorrect infrastructure patterns
+- Load `references/systems-reasoning.md` for expert reasoning triggers
+- Reliability/incident issues → also load `references/systems-reliability.md`
+- Apply **infrastructure debugging discipline:**
+
+1. **Events timeline:** Build a timeline of events leading to the failure. Check deployment history, config changes, and scaling events.
+2. **Pod/container inspection:** For container failures, check exit codes, OOM kills, and health check failures with `kubectl describe pod` or `docker inspect`.
+3. **Resource starvation check:** For degraded performance, check CPU throttling, memory pressure, and disk I/O saturation.
+4. **DNS and network diagnosis:** For connectivity issues, verify DNS resolution, service mesh routing, and network policy rules.
+5. **Config drift detection:** Compare actual deployed config with expected config (Terraform state, Helm values, env vars).
+
+**Systems-specific failure signatures:**
+- Pod restart loop → OOM kill or failing health check (check exit code and events)
+- Deploy succeeds but app broken → Config mismatch or missing migration
+- Latency spike → Connection pool exhaustion, thread starvation, or GC pressure
+- Intermittent failures → DNS TTL caching, flaky dependency, or clock skew
+- Terraform drift → Manual changes to infrastructure outside IaC
+
+- Load `references/diagnostic-taxonomy.md` → use "Systems Failures" section
+
+**Mobile Development** — activate when CONTEXT.md contains: React Native, Flutter, iOS, Android, Swift, Kotlin, mobile, app, Expo, Xcode, Gradle, CocoaPods, offline, push notification, deep link, app store, TestFlight, APK, IPA.
+
+When mobile is detected:
+- Load `references/mobile-code-patterns.md` for correct/incorrect mobile patterns
+- Load `references/mobile-reasoning.md` for expert reasoning triggers
+- Architecture/offline issues → also load `references/mobile-architecture.md`
+- Apply **mobile debugging discipline:**
+
+1. **Platform-specific isolation:** Reproduce the bug on both iOS and Android. Platform-specific bugs are common and require different debugging tools (Xcode vs Android Studio).
+2. **App state diagnosis:** Check if the bug relates to app lifecycle transitions (background → foreground, killed → cold start). Test all states.
+3. **Network condition simulation:** For data-related bugs, test under airplane mode, slow 3G, and normal connectivity. Mobile apps must handle all three.
+4. **Memory profiling:** For crashes or sluggishness, use platform memory profiler. React Native bridge congestion is a common hidden cause.
+5. **Native module isolation:** For cross-platform framework bugs, isolate whether the issue is in JS/Dart layer or native module.
+
+**Mobile-specific failure signatures:**
+- Crash on background return → State not persisted across lifecycle events
+- Blank screen on cold start → Async data load blocking render without loading state
+- Slow scrolling → Heavy computation on main thread or unoptimized list rendering
+- Push notification not received → Permission not granted, token not registered, or payload format wrong
+- Deep link not working → URL scheme not registered or route params not parsed
+
+- Load `references/diagnostic-taxonomy.md` → use "Mobile Failures" section (if available)
+
+**Desktop Development** — activate when CONTEXT.md contains: Electron, Tauri, desktop, window management, IPC, tray, system tray, main process, renderer, native app, installer, auto-update, NSIS, DMG, AppImage, menubar, titlebar.
+
+When desktop is detected:
+- Load `references/desktop-code-patterns.md` for correct/incorrect desktop patterns
+- Load `references/desktop-reasoning.md` for expert reasoning triggers
+- Architecture/IPC issues → also load `references/desktop-architecture.md`
+- Apply **desktop debugging discipline:**
+
+1. **Process identification:** Determine if the bug is in main process, renderer process, or IPC communication between them. Logs differ per process.
+2. **IPC message tracing:** For communication bugs, log all IPC messages with timestamps. Check for message ordering, missing handlers, and serialization failures.
+3. **Memory timeline:** For performance degradation over time, take heap snapshots at intervals. Look for growing object counts (leaked event listeners, unclosed windows).
+4. **Platform-specific reproduction:** Test on Windows, macOS, and Linux. Window management, file paths, and native APIs behave differently per OS.
+5. **Installer/update debugging:** For distribution bugs, test the full install → run → update → run cycle on a clean machine, not a development environment.
+
+**Desktop-specific failure signatures:**
+- White window on start → Renderer crash or failed asset load (check main process console)
+- IPC timeout → Handler not registered or message serialization failure
+- Memory growth over hours → Leaked event listeners or unclosed BrowserWindow instances
+- Update fails silently → Code signing mismatch or CDN configuration error
+- Different behavior per OS → Platform-specific API difference or path separator issue
+
+- Load `references/diagnostic-taxonomy.md` → use "Desktop Failures" section (if available)
+
+**Data Analysis** — activate when CONTEXT.md contains: pandas, numpy, scipy, statistics, EDA, exploratory data analysis, visualization, matplotlib, seaborn, plotly, hypothesis testing, p-value, A/B test, regression analysis, correlation, distribution, Jupyter, notebook.
+
+When data analysis is detected:
+- Load `references/data-analysis-code-patterns.md` for correct/incorrect analysis patterns
+- Load `references/data-analysis-reasoning.md` for expert reasoning triggers
+- Methods/statistical issues → also load `references/data-analysis-methods.md`
+- Apply **analytical debugging discipline:**
+
+1. **Data inspection first:** Before debugging analysis code, inspect the actual data — dtypes, nulls, distributions, outliers. Most analysis bugs are data bugs.
+2. **Assumption audit:** Check if the statistical test's assumptions hold on the actual data. Violated assumptions produce misleading results, not error messages.
+3. **Intermediate result verification:** Print shapes, types, and summary statistics at every transformation step. Chain bugs hide in intermediate DataFrames.
+4. **Visualization as debugging tool:** Plot the data at each stage. Visual inspection catches data issues (bimodal distributions, outliers, truncation) that summary stats miss.
+5. **Reproducibility check:** Set random seed, pin library versions, and re-run. Non-reproducible results indicate stochastic dependencies or hidden state.
+
+**Data analysis-specific failure signatures:**
+- Wrong p-value → Test assumptions violated or wrong test selected for data type
+- Non-reproducible results → Missing random seed or library version mismatch
+- Surprising correlation → Confounding variable, Simpson's paradox, or data leakage
+- Visualization looks wrong → Axis scaling, aggregation level, or missing data handling
+- Memory error on large dataset → Inefficient pandas operations (iterating rows instead of vectorized)
+
+**Data Engineering** — activate when CONTEXT.md contains: pipeline, ETL, ELT, Airflow, Spark, dbt, Kafka, Flink, warehouse, BigQuery, Snowflake, Redshift, data lake, Parquet, Avro, schema registry, orchestration, DAG, data quality, lineage.
+
+When data engineering is detected:
+- Load `references/data-engineering-code-patterns.md` for correct/incorrect pipeline patterns
+- Load `references/data-engineering-reasoning.md` for expert reasoning triggers
+- Pipeline/architecture issues → also load `references/data-engineering-pipelines.md`
+- Apply **pipeline debugging discipline:**
+
+1. **Stage isolation:** Identify which pipeline stage failed. Run each stage independently with captured input to isolate the failure.
+2. **Schema comparison:** Compare actual input schema with expected schema. Schema drift is the #1 cause of pipeline failures.
+3. **Partition inspection:** For data correctness issues, inspect specific partitions. Check for duplicates, missing data, and out-of-order records.
+4. **DAG dependency audit:** For scheduling failures, verify DAG dependencies match actual data dependencies. Missing edges cause races.
+5. **Resource profiling:** For performance issues, check Spark executor logs, Airflow worker utilization, and memory allocation. Data skew causes most Spark performance problems.
+
+**Data engineering-specific failure signatures:**
+- Pipeline silently produces wrong data → Schema drift or join key mismatch
+- DAG stuck in running → Upstream dependency not met or deadlock in resource pool
+- Spark OOM → Data skew in join or aggregation (check partition sizes)
+- Duplicate records in output → Non-idempotent write operation or missing dedup step
+- Stale data in warehouse → Pipeline succeeded but processed empty partition
+
+- Load `references/diagnostic-taxonomy.md` → use "Data Engineering Failures" section (if available)
 
 
 ## Enhanced Diagnostic Method

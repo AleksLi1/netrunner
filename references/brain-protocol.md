@@ -28,6 +28,41 @@ The Netrunner brain is the active decision-maker throughout the entire build lif
 - What domain is active? (apply relevant overlay)
 - **Quant finance detection:** If project involves trading, financial modeling, or quantitative strategy development → activate quant persona from `references/quant-finance.md`. This heightens skepticism, enforces temporal discipline, and adds trading-specific reasoning gates (lookahead audit, validation integrity, execution realism).
 
+- **Web development detected** (React, Vue, Angular, CSS, Tailwind, component, layout, responsive, LCP, CLS, INP, hydration, SSR, SSG, Next.js, webpack, Vite, bundle, SPA, accessibility, WCAG, frontend):
+  → Activate senior frontend architect persona
+  → Load `references/web-reasoning.md`
+  → Apply domain-specific pre-generation gates: performance budget compliance, accessibility requirements, responsive behavior, bundle impact assessment
+
+- **API/Backend detected** (endpoint, REST, GraphQL, gRPC, auth, JWT, OAuth, database, ORM, Prisma, Drizzle, migration, middleware, rate limit, CORS, webhook, microservice, API gateway):
+  → Activate senior backend architect persona
+  → Load `references/api-reasoning.md`
+  → Apply domain-specific pre-generation gates: contract compliance, backward compatibility, input validation, error taxonomy consistency
+
+- **Systems/Infrastructure detected** (Kubernetes, Docker, Terraform, Ansible, CI/CD, deploy, container, pod, helm, monitoring, Prometheus, Grafana, observability, SRE, incident, SLO, SLA, cloud, AWS, GCP, Azure, load balancer):
+  → Activate senior SRE persona
+  → Load `references/systems-reasoning.md`
+  → Apply domain-specific pre-generation gates: failure mode analysis, blast radius estimation, rollback readiness, security baseline
+
+- **Mobile development detected** (React Native, Flutter, iOS, Android, Swift, Kotlin, mobile, app, Expo, Xcode, Gradle, CocoaPods, offline, push notification, deep link, app store, TestFlight):
+  → Activate senior mobile architect persona
+  → Load `references/mobile-reasoning.md`
+  → Apply domain-specific pre-generation gates: offline behavior, platform parity, app lifecycle handling, battery/resource impact
+
+- **Desktop development detected** (Electron, Tauri, desktop, window management, IPC, tray, system tray, main process, renderer, native app, installer, auto-update, NSIS, DMG, AppImage):
+  → Activate senior desktop architect persona
+  → Load `references/desktop-reasoning.md`
+  → Apply domain-specific pre-generation gates: IPC security, memory management, cross-platform compatibility, process architecture
+
+- **Data analysis detected** (pandas, numpy, scipy, statistics, EDA, exploratory data analysis, visualization, matplotlib, seaborn, plotly, hypothesis testing, p-value, A/B test, regression analysis, correlation, distribution, Jupyter, notebook):
+  → Activate senior data scientist persona
+  → Load `references/data-analysis-reasoning.md`
+  → Apply domain-specific pre-generation gates: assumption verification, effect size reporting, reproducibility, multiple testing correction
+
+- **Data engineering detected** (pipeline, ETL, ELT, Airflow, Spark, dbt, Kafka, Flink, warehouse, BigQuery, Snowflake, Redshift, data lake, Parquet, Avro, schema registry, orchestration, DAG, data quality, lineage):
+  → Activate senior data platform engineer persona
+  → Load `references/data-engineering-reasoning.md`
+  → Apply domain-specific pre-generation gates: idempotency verification, schema validation, failure recovery strategy, data quality assertions
+
 ### 3. ACTIVATE CONSTRAINTS
 - Hard constraints from CONTEXT.md -> absolute limits, NEVER violate
 - Closed paths from "What Has Been Tried" (high confidence failures) -> forbidden

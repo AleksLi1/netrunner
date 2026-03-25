@@ -400,55 +400,178 @@ For each domain, these are high-value diagnostic questions targeting common fail
 
 ### Web Applications (Frontend + Full-Stack)
 
-| # | Question | Why It Matters |
-|---|----------|----------------|
-| 1 | "What's the target device and browser matrix -- mobile-first or desktop-first?" | Responsive design approach and performance budgets differ dramatically |
-| 2 | "What's the authentication model -- who can see what?" | Auth/authz shapes routing, middleware, component hierarchy, and API design |
-| 3 | "How many concurrent users at peak, and what's the read/write ratio?" | Determines caching strategy, database scaling, and CDN requirements |
-| 4 | "What's the data freshness requirement -- real-time, near-real-time, or eventual?" | SSR vs. SSG vs. ISR vs. client-fetch depends entirely on this |
-| 5 | "Do you need SEO, or is this an authenticated app?" | SEO-required means SSR/SSG. Auth-only means SPA is fine. |
-| 6 | "What's the current page load time, and what's the target?" | Performance optimization without a number is scope creep |
-| 7 | "What third-party services are in the critical path -- payments, email, analytics?" | Third-party dependencies define failure modes and add latency |
-| 8 | "Is there an existing design system, or are we starting from scratch?" | Reusing a design system saves weeks. Building one is a project in itself. |
+| # | Question | Priority | Infer-if | Why It Matters |
+|---|----------|----------|----------|----------------|
+| 1 | "What's the target device and browser matrix -- mobile-first or desktop-first?" | HIGH | package.json shows browserslist config | Responsive design approach and performance budgets differ dramatically |
+| 2 | "What's the authentication model -- who can see what?" | HIGH | Auth middleware/provider already configured in codebase | Auth/authz shapes routing, middleware, component hierarchy, and API design |
+| 3 | "How many concurrent users at peak, and what's the read/write ratio?" | MEDIUM | Analytics or load test data in context | Determines caching strategy, database scaling, and CDN requirements |
+| 4 | "What's the data freshness requirement -- real-time, near-real-time, or eventual?" | HIGH | Context mentions SSR/SSG/ISR choice or WebSocket usage | SSR vs. SSG vs. ISR vs. client-fetch depends entirely on this |
+| 5 | "Do you need SEO, or is this an authenticated app?" | HIGH | Next.js with SSR or meta tags visible in code | SEO-required means SSR/SSG. Auth-only means SPA is fine. |
+| 6 | "What's the current page load time, and what's the target?" | MEDIUM | Lighthouse scores or performance metrics in context | Performance optimization without a number is scope creep |
+| 7 | "What third-party services are in the critical path -- payments, email, analytics?" | MEDIUM | Third-party SDKs visible in dependencies | Third-party dependencies define failure modes and add latency |
+| 8 | "Is there an existing design system, or are we starting from scratch?" | MEDIUM | UI library (MUI, shadcn, Chakra) in dependencies | Reusing a design system saves weeks. Building one is a project in itself. |
+| 9 | "What's the accessibility requirement -- WCAG A, AA, or AAA?" | MEDIUM | Accessibility testing tools in devDependencies or CI | Accessibility level determines component complexity and testing requirements |
+| 10 | "What's the state management strategy -- server state, client state, or both?" | HIGH | State library (Redux, Zustand, React Query) visible in code | Wrong state management approach causes architectural rewrites later |
+
+**Web question selection priority:**
+1. Ask about rendering strategy (SSR/SSG/SPA) first -- it shapes everything downstream
+2. Ask about performance budget if any optimization work is planned
+3. Ask about state management if building complex interactive features
+
+**Web inference patterns:**
+- Context shows Next.js + app directory → infer SSR-capable, likely server components
+- Dependencies include React Query / SWR → infer server-state-focused architecture
+- Context mentions Tailwind → infer utility-first CSS, no design system from scratch
 
 ### API Design and Backend Services
 
-| # | Question | Why It Matters |
-|---|----------|----------------|
-| 1 | "Who are the API consumers -- your own frontend, third-party developers, or both?" | Internal APIs can break freely. Public APIs need versioning, docs, and backward compatibility. |
-| 2 | "What's the expected payload size range -- bytes, kilobytes, or megabytes?" | Large payloads need streaming, pagination, compression. Small payloads need low overhead. |
-| 3 | "What's the consistency requirement -- strong, eventual, or causal?" | Determines database choice, caching strategy, and replication topology |
-| 4 | "What's the error budget -- how much downtime is acceptable per month?" | 99.9% vs. 99.99% is the difference between a simple deploy and multi-region active-active |
-| 5 | "Is idempotency required -- can the same request be safely retried?" | Payment processing, order creation, and state mutations need idempotency. Reads don't. |
-| 6 | "What's the rate limiting strategy -- per-user, per-IP, or per-API-key?" | Rate limiting shapes auth, middleware, and infrastructure design |
-| 7 | "How do you handle partial failures in multi-service calls?" | Saga pattern vs. two-phase commit vs. compensating transactions -- all different |
-| 8 | "What's the migration path from the current API, if one exists?" | Brownfield API work needs backward compatibility planning |
+| # | Question | Priority | Infer-if | Why It Matters |
+|---|----------|----------|----------|----------------|
+| 1 | "Who are the API consumers -- your own frontend, third-party developers, or both?" | HIGH | Only one frontend in monorepo, or OpenAPI docs present | Internal APIs can break freely. Public APIs need versioning, docs, and backward compatibility. |
+| 2 | "What's the expected payload size range -- bytes, kilobytes, or megabytes?" | MEDIUM | Endpoint purpose is clear (CRUD vs file upload vs streaming) | Large payloads need streaming, pagination, compression. Small payloads need low overhead. |
+| 3 | "What's the consistency requirement -- strong, eventual, or causal?" | HIGH | Database type and replication config visible | Determines database choice, caching strategy, and replication topology |
+| 4 | "What's the error budget -- how much downtime is acceptable per month?" | MEDIUM | SLO/SLA documented in context or infrastructure config | 99.9% vs. 99.99% is the difference between a simple deploy and multi-region active-active |
+| 5 | "Is idempotency required -- can the same request be safely retried?" | HIGH | Endpoint handles payments, orders, or state mutations | Payment processing, order creation, and state mutations need idempotency. Reads don't. |
+| 6 | "What's the rate limiting strategy -- per-user, per-IP, or per-API-key?" | MEDIUM | Rate limit middleware configured in code | Rate limiting shapes auth, middleware, and infrastructure design |
+| 7 | "How do you handle partial failures in multi-service calls?" | HIGH | Multiple service dependencies visible in code | Saga pattern vs. two-phase commit vs. compensating transactions -- all different |
+| 8 | "What's the migration path from the current API, if one exists?" | HIGH | Existing API endpoints in codebase or versioned paths | Brownfield API work needs backward compatibility planning |
+| 9 | "What's the database query pattern -- read-heavy, write-heavy, or balanced?" | MEDIUM | Database type and indexes visible in schema | Determines indexing strategy, caching approach, and read replica needs |
+| 10 | "What's the API versioning strategy -- URL path, header, or query param?" | MEDIUM | Versioned routes already present in codebase | Versioning strategy affects routing, middleware, and client SDK generation |
+
+**API question selection priority:**
+1. Ask about consumers first -- public vs internal API shapes every decision
+2. Ask about consistency if data integrity is critical (financial, medical, etc.)
+3. Ask about idempotency if the API handles mutations
+
+**API inference patterns:**
+- Context shows REST + Prisma → infer CRUD-focused, strong consistency likely needed
+- GraphQL schema present → infer flexible querying, resolver-based architecture
+- Multiple service directories → infer microservices, need to ask about inter-service communication
 
 ### Systems / Infrastructure / DevOps
 
-| # | Question | Why It Matters |
-|---|----------|----------------|
-| 1 | "What's the deployment target -- container, serverless, VM, or bare metal?" | Shapes build pipeline, scaling approach, cost model, and debugging tools |
-| 2 | "What's the rollback strategy if a deployment goes wrong?" | Blue-green, canary, feature flags, or "fix forward" -- each has different infrastructure needs |
-| 3 | "What monitoring exists today -- metrics, logs, traces, or nothing?" | Can't improve what you can't measure. Observability gaps are the first thing to fix. |
-| 4 | "What's the disaster recovery requirement -- RTO and RPO?" | Recovery Time Objective and Recovery Point Objective determine backup strategy and architecture |
-| 5 | "How are secrets managed -- env vars, vault, cloud KMS, or config files?" | Secrets in config files is a security incident waiting to happen |
-| 6 | "What's the network topology -- single region, multi-region, hybrid cloud?" | Latency, data residency, and failure domains depend on this |
-| 7 | "What's the CI/CD pipeline -- automated, semi-automated, or manual?" | Manual deployments are the #1 cause of production incidents in small teams |
-| 8 | "How do you handle database schema changes in production?" | Migration strategy determines whether deploys are scary or routine |
+| # | Question | Priority | Infer-if | Why It Matters |
+|---|----------|----------|----------|----------------|
+| 1 | "What's the deployment target -- container, serverless, VM, or bare metal?" | HIGH | Dockerfile, serverless.yml, or terraform config present | Shapes build pipeline, scaling approach, cost model, and debugging tools |
+| 2 | "What's the rollback strategy if a deployment goes wrong?" | HIGH | Blue-green or canary config visible in deployment scripts | Blue-green, canary, feature flags, or "fix forward" -- each has different infrastructure needs |
+| 3 | "What monitoring exists today -- metrics, logs, traces, or nothing?" | HIGH | Prometheus, Grafana, Datadog config visible | Can't improve what you can't measure. Observability gaps are the first thing to fix. |
+| 4 | "What's the disaster recovery requirement -- RTO and RPO?" | MEDIUM | DR documentation or backup config present | Recovery Time Objective and Recovery Point Objective determine backup strategy and architecture |
+| 5 | "How are secrets managed -- env vars, vault, cloud KMS, or config files?" | HIGH | Vault config, KMS references, or .env patterns visible | Secrets in config files is a security incident waiting to happen |
+| 6 | "What's the network topology -- single region, multi-region, hybrid cloud?" | MEDIUM | Terraform/CloudFormation shows region config | Latency, data residency, and failure domains depend on this |
+| 7 | "What's the CI/CD pipeline -- automated, semi-automated, or manual?" | HIGH | .github/workflows, .gitlab-ci.yml, or Jenkinsfile present | Manual deployments are the #1 cause of production incidents in small teams |
+| 8 | "How do you handle database schema changes in production?" | MEDIUM | Migration tool config (Flyway, Alembic, Prisma migrate) present | Migration strategy determines whether deploys are scary or routine |
+| 9 | "What's the cost ceiling -- monthly budget for infrastructure?" | MEDIUM | Cost alerts or budget config in cloud console | Over-engineering infrastructure is as bad as under-engineering it |
+| 10 | "What's the compliance requirement -- HIPAA, SOC2, PCI, GDPR, or none?" | HIGH | Compliance documentation or audit configs visible | Compliance requirements shape logging, encryption, access control, and data residency |
+
+**Systems question selection priority:**
+1. Ask about deployment target first -- it constrains everything else
+2. Ask about monitoring if debugging or reliability improvement is the goal
+3. Ask about compliance if handling sensitive data (medical, financial, personal)
+
+**Systems inference patterns:**
+- Kubernetes manifests present → infer containerized, likely autoscaling, need to check resource limits
+- Terraform state files → infer IaC-managed, check for state drift
+- GitHub Actions present → infer automated CI/CD, check for staging environment
+
+### Mobile Applications
+
+| # | Question | Priority | Infer-if | Why It Matters |
+|---|----------|----------|----------|----------------|
+| 1 | "What's the target platform -- iOS only, Android only, or both?" | HIGH | Platform-specific code or Xcode/Gradle configs visible | Cross-platform doubles testing and platform-specific bug surface |
+| 2 | "What's the minimum OS version supported?" | HIGH | MinimumOSVersion in Info.plist or minSdkVersion in build.gradle | OS version determines available APIs and limits architectural choices |
+| 3 | "What's the offline strategy -- offline-first, online-with-cache, or online-only?" | HIGH | AsyncStorage, SQLite, or realm usage visible in code | Offline strategy shapes data layer architecture, sync logic, and UX patterns |
+| 4 | "What's the navigation structure -- stack, tab, drawer, or combination?" | MEDIUM | React Navigation or go_router config visible | Navigation architecture must be established before building feature screens |
+| 5 | "How is authentication handled -- token storage, refresh, biometric?" | HIGH | Keychain/Keystore usage or auth library visible | Mobile auth needs secure storage, background token refresh, and biometric integration |
+| 6 | "What's the push notification strategy -- what triggers notifications and how are they handled?" | MEDIUM | FCM/APNs configuration present | Push notifications require server integration, permission handling, and deep link routing |
+| 7 | "What's the target app size -- any size constraints from the store or users?" | MEDIUM | Asset optimization or bundle splitting visible | App size affects download conversion, especially in markets with slow connections |
+| 8 | "How do you handle app store submissions -- manual or automated (Fastlane, EAS)?" | MEDIUM | Fastlane config or EAS config present | Automated submission saves hours per release and reduces human error |
+| 9 | "What's the crash reporting and analytics setup?" | MEDIUM | Crashlytics, Sentry, or analytics SDK visible | Without crash reporting, production bugs are invisible until user reviews |
+| 10 | "What are the performance targets -- startup time, frame rate, memory budget?" | HIGH | Performance monitoring visible in code | Mobile users abandon slow apps. Concrete targets prevent endless optimization. |
+
+**Mobile question selection priority:**
+1. Ask about offline strategy first -- it shapes the entire data architecture
+2. Ask about platform targets -- cross-platform has double the testing surface
+3. Ask about performance targets if optimization work is planned
+
+**Mobile inference patterns:**
+- Context shows React Native + Expo → infer managed workflow, OTA updates available
+- AsyncStorage usage → infer basic offline cache, may need upgrade for complex sync
+- Platform.select present → infer cross-platform awareness, check for platform-specific testing
+
+### Desktop Applications
+
+| # | Question | Priority | Infer-if | Why It Matters |
+|---|----------|----------|----------|----------------|
+| 1 | "What framework -- Electron, Tauri, or native?" | HIGH | Package.json shows electron or Cargo.toml shows tauri | Framework choice determines process model, performance characteristics, and distribution |
+| 2 | "What's the target platform -- Windows, macOS, Linux, or all three?" | HIGH | Build configs show target platforms | Cross-platform increases testing matrix and requires platform-specific code paths |
+| 3 | "Does the app need offline/local-first capability, or is it always connected?" | HIGH | Local database or file storage visible in code | Local-first apps need different architecture than cloud-dependent ones |
+| 4 | "What native OS features are needed -- file system, tray, notifications, system menu?" | MEDIUM | Native API usage visible in main process code | Each native feature requires platform-specific implementation and testing |
+| 5 | "What's the update strategy -- auto-update, manual download, or app store?" | HIGH | electron-updater or Tauri updater configured | Update mechanism must be built early and tested on each platform |
+| 6 | "How much data does the app handle -- documents, databases, or media files?" | MEDIUM | File handling or database code visible | Large file handling requires streaming, progress indication, and memory management |
+| 7 | "Is code signing set up for all target platforms?" | HIGH | Signing certificates or configs visible | Unsigned apps trigger security warnings and may be blocked by OS |
+| 8 | "What's the expected session duration -- minutes, hours, or days?" | MEDIUM | App type and usage pattern clear from context | Long sessions demand careful memory management and state persistence |
+| 9 | "Are there any system integration requirements -- file associations, protocol handlers, startup items?" | MEDIUM | Protocol handler or file association config visible | System integrations are platform-specific and affect installer configuration |
+| 10 | "What's the memory budget -- any constraints from target hardware?" | HIGH | Memory profiling or limits visible in config | Desktop apps sharing resources with other apps must respect memory budgets |
+
+**Desktop question selection priority:**
+1. Ask about framework choice first -- Electron vs Tauri have fundamentally different architectures
+2. Ask about target platforms -- cross-platform triples the testing matrix
+3. Ask about update strategy early -- retrofitting auto-update is painful
+
+**Desktop inference patterns:**
+- Electron + electron-builder → infer cross-platform distribution, check signing config
+- Tauri + Rust backend → infer lighter binary, check for native module needs
+- BrowserWindow.getAllWindows().length checks → infer multi-window architecture
+
+### Data Analysis / Data Science
+
+| # | Question | Priority | Infer-if | Why It Matters |
+|---|----------|----------|----------|----------------|
+| 1 | "What's the research question or hypothesis you're testing?" | HIGH | Analysis goal stated in context or notebook title | Without a clear question, analysis becomes data dredging |
+| 2 | "What's the data source -- CSV, database, API, or manual collection?" | HIGH | Data loading code visible in notebooks/scripts | Source determines schema stability, refresh capability, and quality expectations |
+| 3 | "What's the sample size and is it sufficient for your analysis?" | HIGH | Data shape visible in profiling output | Underpowered analyses produce unreliable results regardless of methodology |
+| 4 | "Is this exploratory (hypothesis-generating) or confirmatory (hypothesis-testing)?" | HIGH | Analysis approach visible in code structure | Exploratory and confirmatory analyses have different statistical standards |
+| 5 | "What statistical methods are you planning to use, and why?" | MEDIUM | Test functions imported in code | Wrong test selection invalidates conclusions regardless of significance level |
+| 6 | "Are there known confounding variables that need to be controlled?" | HIGH | Stratification or adjustment visible in analysis code | Uncontrolled confounders make causal claims invalid |
+| 7 | "What's the deliverable -- notebook, report, dashboard, or presentation?" | MEDIUM | Output format visible in code | Deliverable format shapes visualization choices and documentation level |
+| 8 | "How will you handle missing data -- imputation, exclusion, or sensitivity analysis?" | MEDIUM | Missing data handling visible in preprocessing code | Missing data strategy can dramatically change results |
+| 9 | "Is reproducibility required -- can someone else re-run this analysis and get the same results?" | HIGH | Seeds set and requirements pinned | Non-reproducible analyses cannot be verified or extended |
+| 10 | "Are there multiple comparisons or subgroup analyses planned?" | HIGH | Multiple test calls or group-by analyses visible | Multiple testing without correction inflates false positive rate |
+
+**Data analysis question selection priority:**
+1. Ask about the research question first -- everything else is premature without it
+2. Ask about exploratory vs confirmatory -- determines statistical rigor requirements
+3. Ask about sample size if drawing quantitative conclusions
+
+**Data analysis inference patterns:**
+- Jupyter notebook with EDA title → infer exploratory, lower statistical rigor bar but document findings
+- scipy.stats.ttest imported → infer confirmatory, check assumptions
+- Multiple groupby + filter combinations → infer subgroup analysis, flag multiple testing
 
 ### Data Pipelines / ETL / Data Engineering
 
-| # | Question | Why It Matters |
-|---|----------|----------------|
-| 1 | "What's the data volume per day/hour/minute?" | Batch vs. streaming architecture depends entirely on volume and velocity |
-| 2 | "What's the data quality contract -- schema validation, null handling, dedup?" | Garbage in, garbage out. Quality gates prevent downstream cascading failures. |
-| 3 | "What's the SLA for data freshness -- when must data be available after ingestion?" | Minutes vs. hours vs. days determines architecture and cost |
-| 4 | "How do you handle late-arriving or out-of-order data?" | Event-time vs. processing-time semantics affect every aggregation |
-| 5 | "What's the reprocessing strategy -- can you replay the pipeline from raw data?" | Immutable raw data + replayable pipelines = production safety net |
-| 6 | "Who consumes the output -- dashboards, ML models, downstream services, or all three?" | Different consumers have different freshness, format, and schema needs |
-| 7 | "What happens when the pipeline fails at 3 AM -- alerting, auto-retry, or manual?" | Failure handling strategy determines operational burden |
-| 8 | "What's the data retention policy -- how long do you keep raw vs. aggregated data?" | Storage costs and compliance requirements shape the architecture |
+| # | Question | Priority | Infer-if | Why It Matters |
+|---|----------|----------|----------|----------------|
+| 1 | "What's the data volume per day/hour/minute?" | HIGH | Volume metrics or Spark cluster config visible | Batch vs. streaming architecture depends entirely on volume and velocity |
+| 2 | "What's the data quality contract -- schema validation, null handling, dedup?" | HIGH | Great Expectations, dbt tests, or assertions visible in code | Garbage in, garbage out. Quality gates prevent downstream cascading failures. |
+| 3 | "What's the SLA for data freshness -- when must data be available after ingestion?" | HIGH | SLA documentation or freshness monitoring visible | Minutes vs. hours vs. days determines architecture and cost |
+| 4 | "How do you handle late-arriving or out-of-order data?" | HIGH | Watermark config or event-time processing visible | Event-time vs. processing-time semantics affect every aggregation |
+| 5 | "What's the reprocessing strategy -- can you replay the pipeline from raw data?" | HIGH | Immutable raw layer or backfill scripts visible | Immutable raw data + replayable pipelines = production safety net |
+| 6 | "Who consumes the output -- dashboards, ML models, downstream services, or all three?" | MEDIUM | Consumer queries or downstream DAG dependencies visible | Different consumers have different freshness, format, and schema needs |
+| 7 | "What happens when the pipeline fails at 3 AM -- alerting, auto-retry, or manual?" | HIGH | Alert config or retry policies visible in DAG definition | Failure handling strategy determines operational burden |
+| 8 | "What's the data retention policy -- how long do you keep raw vs. aggregated data?" | MEDIUM | Lifecycle policies or partition management visible | Storage costs and compliance requirements shape the architecture |
+| 9 | "How do schema changes propagate -- registry, documentation, or ad-hoc communication?" | HIGH | Schema registry config or migration scripts visible | Schema evolution without a strategy causes cascading downstream failures |
+| 10 | "What's the cost per pipeline run, and is there a budget ceiling?" | MEDIUM | Cost tags or budget alerts visible in cloud config | Unmonitored pipeline costs grow exponentially with data volume |
+
+**Data engineering question selection priority:**
+1. Ask about data volume first -- it determines batch vs streaming vs hybrid
+2. Ask about freshness SLA -- it constrains architecture choices
+3. Ask about failure handling if pipeline reliability is the concern
+
+**Data engineering inference patterns:**
+- Airflow DAGs present → infer batch-oriented, check for sensor timeouts
+- Kafka consumers visible → infer streaming, check for offset management and exactly-once
+- dbt models present → infer SQL-first transformations, check for incremental models
 
 ### Quantitative Finance / Trading
 

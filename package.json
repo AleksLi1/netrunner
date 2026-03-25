@@ -1,0 +1,35 @@
+{
+  "name": "netrunner-cc",
+  "version": "2.0.0",
+  "description": "Netrunner — The Autonomous Expert for Claude Code. Brain-driven project execution with diagnostic reasoning.",
+  "keywords": ["claude", "claude-code", "ai", "autonomous", "project-management", "diagnostic", "expert-system"],
+  "author": "Netrunner",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yourusername/netrunner"
+  },
+  "bin": {
+    "nr-tools": "./bin/nr-tools.cjs"
+  },
+  "files": [
+    "bin/",
+    "commands/",
+    "agents/",
+    "workflows/",
+    "templates/",
+    "references/",
+    "examples/",
+    "install.sh",
+    "install.ps1",
+    "VERSION"
+  ],
+  "scripts": {
+    "postinstall": "node scripts/postinstall.cjs",
+    "install-local": "bash install.sh",
+    "install-local-win": "powershell -File install.ps1"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -114,3 +114,61 @@ Typical systems/infra project phases:
 7. **Reliability Engineering** — chaos testing, backup validation, failover drills
 8. **Capacity Planning** — load testing, scaling policies, cost optimization
 9. **Runbooks + Documentation** — incident response, operational procedures, architecture diagrams
+
+## Reasoning Triggers — Deep References
+
+These triggers activate loading of specialized reference files for deep knowledge. They extend the base systems reasoning with comprehensive coverage.
+
+### Incident Investigation Trigger
+**Activate when:** Query mentions outage, incident, degradation, downtime, pages, on-call, SEV-1, SEV-2, postmortem, root cause analysis, war room, status page, error budget burn.
+**Load:** `references/systems-reliability.md` — Incident Management section, Postmortem Culture, Severity Levels.
+**Gate questions before generating response:**
+- What is the severity? (complete outage vs degradation vs potential risk)
+- What changed recently? (deploy, config, traffic, upstream dependency)
+- What does the error budget look like? (budget remaining determines urgency)
+- Is there a runbook for this failure mode? (follow it before improvising)
+
+### Infrastructure Review Trigger
+**Activate when:** Query mentions scaling, capacity planning, cost optimization, auto-scaling, right-sizing, infrastructure audit, cloud migration, resource utilization, headroom.
+**Load:** `references/systems-reasoning.md` — Capacity Planning trigger + `references/systems-reliability.md` — Capacity Planning section.
+**Gate questions before generating response:**
+- What is the current load profile? (peak vs average, growth trend)
+- Where is the bottleneck? (CPU, memory, network, database, external API)
+- What is the cost per request? (efficiency at current scale vs projected scale)
+- Is auto-scaling configured? (triggers, cooldown, cost caps)
+
+### Security Audit Trigger
+**Activate when:** Query mentions secrets, credentials, vulnerability, CVE, compliance, SOC2, HIPAA, PCI, access control, IAM, network policy, encryption, zero-trust, penetration test.
+**Load:** `references/systems-code-patterns.md` — Pattern 1 (Hardcoded Secrets), Pattern 9 (Unencrypted Internal Traffic).
+**Gate questions before generating response:**
+- How are secrets managed? (vault, env vars, config files — if not vault, this is priority 1)
+- What is the IAM scope? (least privilege audit — when was the last review?)
+- Is internal traffic encrypted? (mTLS, service mesh, or explicit TLS)
+- Is there an audit trail? (who accessed what and when)
+
+### Observability Setup Trigger
+**Activate when:** Query mentions monitoring, alerting, logging, tracing, dashboards, Grafana, Prometheus, Datadog, metrics, SLO dashboard, alert fatigue, correlation ID, structured logging.
+**Load:** `references/systems-reliability.md` — Observability Patterns section, Alert Design Principles.
+**Gate questions before generating response:**
+- Are the three pillars covered? (metrics, logs, traces — which is missing?)
+- Are alerts actionable? (every alert should have a runbook link and a clear response)
+- Is there a correlation ID flowing through all services? (without this, debugging is impossible)
+- What is the alert-to-incident ratio? (if < 20%, there's an alert fatigue problem)
+
+### Deploy Pipeline Trigger
+**Activate when:** Query mentions deployment, CI/CD, rollback, canary, blue-green, feature flags, progressive delivery, release management, GitOps, ArgoCD.
+**Load:** `references/systems-reliability.md` — Deploy Strategies section, Progressive Delivery Decision Matrix.
+**Gate questions before generating response:**
+- What is the rollback strategy? (automated vs manual, time to rollback)
+- Are deploys observable? (can you see error rate change in real time during rollout?)
+- Is backward compatibility maintained? (old and new versions coexisting during rollout)
+- What is the blast radius of a bad deploy? (all users vs percentage vs single pod)
+
+### Reliability Engineering Trigger
+**Activate when:** Query mentions chaos engineering, game day, failure injection, resilience testing, circuit breaker, bulkhead, graceful degradation, disaster recovery, DR drill, backup restore.
+**Load:** `references/systems-reliability.md` — Chaos Engineering section + `references/systems-code-patterns.md` — Pattern 12 (Circuit Breaker), Pattern 4 (Unbounded Retries).
+**Gate questions before generating response:**
+- What is the steady state definition? (what does "normal" look like in numbers?)
+- What is the blast radius of this experiment? (can it affect real users?)
+- Is there a kill switch? (can the experiment be stopped immediately?)
+- Has the team done chaos experiments before? (start at Level 1, not Level 5)

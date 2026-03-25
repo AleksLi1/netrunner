@@ -605,4 +605,174 @@ After each phase, verify that CONTEXT.md was properly updated:
 - [ ] Feature flags can disable new integration without full rollback
 - [ ] Monitoring detects integration failures specifically (not just component failures)
 
+### Mobile Application Phases
+
+**Offline/Data verification:**
+- [ ] App functions with airplane mode enabled (no crashes, cached data shown)
+- [ ] Data persists across app kill and cold restart
+- [ ] Sync resolves conflicts when online connectivity returns
+- [ ] Local cache is bounded (won't fill device storage)
+- [ ] Network timeout handling shows user-friendly feedback
+
+**Platform parity verification:**
+- [ ] Feature works on both iOS and Android target versions
+- [ ] Platform-specific UI conventions respected (back button Android, swipe-back iOS)
+- [ ] Push notifications received in foreground, background, and killed states
+- [ ] Deep links resolve correctly on both platforms
+- [ ] Permissions handled gracefully on denial
+
+**Performance verification (mobile):**
+- [ ] Scrolling maintains 30+ fps on minimum-spec target device
+- [ ] App startup time under 3 seconds on cold start
+- [ ] Memory usage stable over extended use (no monotonic growth)
+- [ ] Images sized appropriately for device density (no oversized downloads)
+- [ ] Battery impact acceptable for background operations
+
+**App lifecycle verification:**
+- [ ] State preserved across background/foreground transitions
+- [ ] No duplicate API calls on resume
+- [ ] Background tasks complete within OS time budget
+- [ ] App handles memory warnings gracefully (releases caches)
+- [ ] Splash screen displays correctly and dismisses on data ready
+
+**App store readiness:**
+- [ ] Privacy policy URL configured and accessible
+- [ ] Permission usage descriptions are user-friendly and accurate
+- [ ] App icon renders at all required sizes
+- [ ] Screenshots and metadata prepared for store listing
+- [ ] No use of private/deprecated APIs
+
+### Desktop Application Phases
+
+**Process architecture verification:**
+- [ ] Main process stays responsive (no synchronous blocking operations)
+- [ ] Renderer processes isolated with contextIsolation enabled
+- [ ] IPC channels validate sender identity and sanitize arguments
+- [ ] Preload scripts expose minimal API surface via contextBridge
+- [ ] nodeIntegration disabled in all renderer windows
+
+**Window management verification:**
+- [ ] Window size and position persisted across app restarts
+- [ ] Multiple window management works correctly (open, close, focus)
+- [ ] Tray icon and context menu functional on all target platforms
+- [ ] App handles display connect/disconnect (external monitors)
+- [ ] Fullscreen/maximize/minimize transitions are smooth
+
+**Cross-platform verification:**
+- [ ] App installs and runs on Windows 10+, macOS 12+, and target Linux distributions
+- [ ] File paths use platform-agnostic construction (path.join, app.getPath)
+- [ ] Menu bar follows platform conventions (app menu on macOS, window menu on Windows)
+- [ ] Keyboard shortcuts use platform-appropriate modifiers (Cmd on macOS, Ctrl on Windows/Linux)
+- [ ] Native dialogs (file open, save, print) work on all platforms
+
+**Distribution verification:**
+- [ ] Installer creates working installation on clean machine (no dev dependencies required)
+- [ ] Code signing valid on all target platforms
+- [ ] Auto-update downloads, verifies, and installs correctly
+- [ ] Uninstaller removes all app files and registry entries cleanly
+- [ ] App version displayed correctly in about dialog and OS app info
+
+**Memory and performance verification:**
+- [ ] Memory usage stable over 4+ hours of typical use
+- [ ] Cold startup time under 3 seconds on target hardware
+- [ ] No leaked BrowserWindow instances after window close
+- [ ] Event listeners properly removed on component/window cleanup
+- [ ] Large file operations use streaming (not loading entire file to memory)
+
+### Data Analysis Phases
+
+**Data quality verification:**
+- [ ] Data profiling report generated (shape, dtypes, nulls, distributions)
+- [ ] Missing data handling documented with justification
+- [ ] Outlier treatment documented with sensitivity analysis
+- [ ] Data types correct (no silent string-to-number coercion)
+- [ ] Date/time parsing verified with timezone handling
+
+**Methodology verification:**
+- [ ] Statistical test selected with documented justification
+- [ ] Test assumptions explicitly checked on the data (normality, independence, homoscedasticity)
+- [ ] Alternative tests considered and documented when assumptions borderline
+- [ ] Sample size sufficient for claimed statistical power (power analysis if applicable)
+- [ ] Effect size reported alongside p-value
+
+**Reproducibility verification:**
+- [ ] Random seeds set at script/notebook start
+- [ ] Library versions pinned in requirements/environment file
+- [ ] Data version or snapshot documented
+- [ ] Analysis produces identical results on kernel restart and full re-run
+- [ ] Notebook cells execute in order without hidden state dependencies
+
+**Visualization verification:**
+- [ ] All axes labeled with units
+- [ ] Chart type appropriate for data type (bar for categorical, scatter for continuous, etc.)
+- [ ] Scales not misleading (y-axis starting point appropriate, no log vs linear confusion)
+- [ ] Color palette accessible (colorblind-safe)
+- [ ] Legends present when multiple series plotted
+- [ ] Source data and aggregation level documented
+
+**Multiple testing verification:**
+- [ ] Total number of tests documented
+- [ ] Correction method applied (Bonferroni, Holm, Benjamini-Hochberg)
+- [ ] Adjusted p-values or adjusted significance level reported
+- [ ] Exploratory analyses clearly separated from confirmatory
+- [ ] Pre-registered hypotheses distinguished from post-hoc discoveries
+
+**Reporting verification:**
+- [ ] Conclusions supported by the analysis (no overclaiming)
+- [ ] Limitations acknowledged
+- [ ] Confidence intervals reported for key estimates
+- [ ] Practical significance discussed alongside statistical significance
+- [ ] Analysis code available for review
+
+### Data Engineering Phases
+
+**Ingestion verification:**
+- [ ] Source schema validated at ingestion boundary
+- [ ] Row count and byte size logged per ingestion run
+- [ ] Incremental ingestion handles gaps and overlaps correctly
+- [ ] Source connection handles timeouts and retries
+- [ ] Ingestion is idempotent (re-run produces same result)
+
+**Transformation verification:**
+- [ ] Input/output row count relationship explained by logic (joins, filters, aggregations)
+- [ ] No unintended duplicates introduced by joins
+- [ ] Null handling explicit at every transformation step
+- [ ] Type casting documented and validated (no silent coercion)
+- [ ] Business logic matches specification (spot-check sample records)
+
+**Data quality gate verification:**
+- [ ] Row count within expected range (alert on >5% deviation)
+- [ ] Null rate within threshold for each critical column
+- [ ] Value distribution within expected bounds (no sudden shifts)
+- [ ] Referential integrity maintained across related tables
+- [ ] Freshness SLA met (data available within promised window)
+
+**Pipeline reliability verification:**
+- [ ] Pipeline is idempotent (re-run produces identical output)
+- [ ] Retry logic handles transient failures correctly
+- [ ] Failed runs produce clear error messages with stage identification
+- [ ] Alerting triggers on failure, data quality violation, and SLA breach
+- [ ] Dead letter queue or error table captures unprocessable records
+
+**Schema evolution verification:**
+- [ ] New columns added without breaking downstream consumers
+- [ ] Deprecated columns handled with grace period before removal
+- [ ] Schema registry (if used) accepts the new schema under compatibility rules
+- [ ] Downstream consumers tested against new schema
+- [ ] Migration script handles both new and old schema during transition
+
+**Backfill and reprocessing verification:**
+- [ ] Pipeline accepts date range parameters for backfill
+- [ ] Backfill produces same output as original run for overlapping dates
+- [ ] No duplicate records created during backfill
+- [ ] Backfill resource usage profiled (won't overwhelm cluster)
+- [ ] Backfill progress trackable and resumable
+
+**Cost and resource verification:**
+- [ ] Pipeline resource allocation right-sized (no over-provisioning)
+- [ ] Partition pruning effective for typical queries
+- [ ] Data lifecycle policy implemented (old partitions archived or dropped)
+- [ ] Temporary tables and staging files cleaned up after completion
+- [ ] Cost per pipeline run tracked and within budget
+
 </phase_type_checklists>

@@ -19,19 +19,19 @@ Every `/nr` invocation must produce a better answer than the user would get aski
 - ✓ 2-3 diagnostic UI questions with context-specific options (actual numbers, actual approaches)
 - ✓ Structured response: constraint frame → diagnostic hypothesis → avenues → recommendation
 - ✓ Context file auto-update after each invocation
-- ✓ Bypass mode for suppressed UI (plain text fallback)
+- ✓ Bypass mode for suppressed UI (inference path — infers from context.md, not a dead end). Validated in Phase 1: Bypass Mode Fix
 - ✓ Implementation confidence tracking on failures
 
 ### Active
 
 - [ ] STRATEGY classification for "what now?" prioritization queries
 - [ ] Adaptive question skipping based on context richness
-- [ ] Fix bypass mode — infer and proceed, don't stop
+- ✓ Fix bypass mode — infer and proceed, don't stop. Validated in Phase 1: Bypass Mode Fix
 - [ ] Experiment cluster detection to prevent repetitive suggestions
 - [ ] Compact avenue format for iterative sessions
-- [ ] Constraint enforcement pre-check before generating avenues
+- ✓ Constraint enforcement pre-check before generating avenues. Validated in Phase 3: Constraint Enforcement
 - [ ] Action-oriented output with next-step bridging to execution
-- [ ] Context schema migration (v1 → v2 detection and silent upgrade)
+- ✓ Context schema migration (v1 → v2 detection and silent upgrade). Validated in Phase 2: Schema Migration
 - [ ] Session-aware context updates (batch per session, not per invocation)
 - [ ] EXPLAIN classification for comprehension queries
 
@@ -67,4 +67,4 @@ The skill is a single markdown file (`nr.md`) installed to `~/.claude/commands/`
 | Priority order from IMPROVEMENTS.md | Impact × effort already assessed from real usage | — Pending |
 
 ---
-*Last updated: 2026-03-19 after initialization*
+*Last updated: 2026-03-19 — Phase 3 (Constraint Enforcement) complete*

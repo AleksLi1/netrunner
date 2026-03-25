@@ -44,7 +44,194 @@ When quant is detected:
 - [ ] Out-of-sample holdout remains untouched
 - [ ] Feature importance analysis doesn't reveal leakage signals
 
-**Other domains** — apply standard goal-backward verification with production-readiness focus.
+**Enhanced quant verification (with deep references):**
+- Load `references/strategy-metrics.md` — verify metric implementations match correct formulas:
+  - Sharpe ratio uses sqrt(252) annualization (not 365) and ideally Newey-West adjustment
+  - Max drawdown computed on equity curve (not log returns)
+  - Walk-forward efficiency (WFE) between 0.3 and 0.9 (< 0.3 = overfit, > 0.9 = suspicious leakage)
+  - Bootstrap confidence intervals reported for key metrics
+- Load `references/feature-engineering.md` — verify feature quality:
+  - Every rolling computation preceded by shift(1) — check feature construction code
+  - Feature selection done inside walk-forward CV, not on full dataset
+  - IC evaluation is walk-forward based, not single-split
+  - Ablation study uses walk-forward, not random split
+  - Multiple testing correction applied when testing many features
+- **Automated scanning:** Spawn `nr-quant-auditor` for automated verification:
+  ```
+  Task(subagent_type="nr-quant-auditor", description="Quant verification audit",
+    prompt="Run TEMPORAL_AUDIT + VALIDATION_AUDIT. Write report to .planning/audit/.
+    Focus: temporal contamination and metric correctness.")
+  ```
+  Integrate audit score into verification verdict:
+  - Audit score >= 90 → does not block PASS
+  - Audit score 70-89 → forces PASS_WITH_NOTES (auditor findings as notes)
+  - Audit score < 70 → forces FAIL (CRITICAL violations must be resolved)
+- **Statistical significance gate:** Claimed Sharpe improvements must include confidence intervals. If multiple strategies were tested, apply Deflated Sharpe Ratio to adjust for selection bias.
+- **Transaction cost gate:** Any P&L metric reported without transaction costs triggers WARNING. Net Sharpe must be reported alongside gross Sharpe.
+
+**Web Development** — activate when CONTEXT.md contains: React, Vue, Angular, CSS, Tailwind, component, layout, responsive, LCP, CLS, INP, hydration, SSR, SSG, Next.js, Nuxt, webpack, Vite, bundle, SPA, accessibility, WCAG, frontend.
+
+When web is detected:
+- Load `references/web-code-patterns.md` — use the anti-pattern summary table to scan committed code for rendering issues (missing keys, unstable refs, layout thrashing, etc.)
+- Apply **frontend verification rigor:**
+
+1. **Core Web Vitals gate:** Verify LCP < 2.5s, CLS < 0.1, INP < 200ms. If any metric exceeds threshold, flag as FAIL with specific remediation.
+2. **Responsive verification:** Every UI component must be verified at mobile (375px), tablet (768px), and desktop (1280px) breakpoints. Missing breakpoint = incomplete.
+3. **Accessibility audit:** Run axe-core or equivalent. WCAG AA violations on interactive elements are FAIL, not WARNING.
+4. **Bundle impact check:** If phase added dependencies, verify bundle size delta. >50KB increase without justification triggers WARNING.
+5. **Hydration mismatch check:** For SSR apps, verify no hydration warnings in console. Server/client divergence is a bug.
+
+**Additional verification checks for web projects:**
+- [ ] No console errors or warnings in browser dev tools
+- [ ] All interactive elements have hover, focus, and active states
+- [ ] Loading, error, and empty states implemented for data-fetching components
+- [ ] Images have explicit dimensions (prevent CLS)
+- [ ] Semantic HTML used (no div-soup)
+- [ ] Forms have proper validation feedback
+
+- Load `references/web-reasoning.md` for verification context
+- Performance verification → load `references/web-performance.md`
+- Load `references/verification-patterns.md` → use "UI Component Phases" checklist
+
+**API/Backend** — activate when CONTEXT.md contains: endpoint, REST, GraphQL, gRPC, auth, JWT, OAuth, database, ORM, Prisma, Drizzle, migration, middleware, rate limit, CORS, webhook, microservice, API gateway.
+
+When API/Backend is detected:
+- Load `references/api-code-patterns.md` — use the anti-pattern summary table to scan committed code for security holes, N+1 queries, missing validation, etc.
+- Apply **API verification rigor:**
+
+1. **Contract compliance:** Verify every endpoint matches its documented schema (request/response types, status codes, error format).
+2. **Auth verification:** Every protected endpoint must be tested with valid token, expired token, missing token, and wrong-role token. Missing any case = FAIL.
+3. **SQL injection scan:** Any raw SQL or string interpolation in queries triggers FAIL. Parameterized queries only.
+4. **N+1 query detection:** For endpoints returning collections with relations, verify query count is bounded. Enable query logging and count.
+5. **Error response consistency:** All error responses must follow the same format. Mixed error formats = FAIL.
+
+**Additional verification checks for API projects:**
+- [ ] Input validation on all endpoints (type, range, required fields)
+- [ ] Rate limiting configured on public-facing endpoints
+- [ ] CORS headers configured correctly (not wildcard in production)
+- [ ] Database migrations are reversible
+- [ ] Connection pool configured and not exhausting under load
+- [ ] Sensitive data excluded from logs and error responses
+
+- Load `references/api-reasoning.md` for verification context
+- Design verification → load `references/api-design.md`
+- Load `references/verification-patterns.md` → use "API Endpoint Phases" checklist
+
+**Systems/Infrastructure** — activate when CONTEXT.md contains: Kubernetes, Docker, Terraform, Ansible, CI/CD, deploy, container, pod, helm, monitoring, Prometheus, Grafana, observability, SRE, incident, SLO, SLA, cloud, AWS, GCP, Azure, load balancer.
+
+When systems/infra is detected:
+- Load `references/systems-code-patterns.md` — use the anti-pattern summary table to scan IaC for security gaps, missing resource limits, hardcoded secrets, etc.
+- Apply **infrastructure verification rigor:**
+
+1. **Rollback verification:** Every deployment must have a tested rollback procedure. Untested rollback = FAIL.
+2. **Health check verification:** All services must have liveness and readiness probes. Missing probes = FAIL.
+3. **Secret scan:** No secrets in code, config files, or environment variable definitions in IaC. Any plaintext secret = CRITICAL FAIL.
+4. **Resource limits:** All containers must have CPU and memory limits set. Unlimited containers = WARNING.
+5. **Monitoring verification:** Logs collected, metrics emitted, alerts configured for error rate and latency thresholds.
+
+**Additional verification checks for systems projects:**
+- [ ] IAM roles follow least privilege principle
+- [ ] Network policies restrict traffic to necessary paths only
+- [ ] TLS/SSL configured on all external-facing endpoints
+- [ ] Backup and restore procedure tested
+- [ ] Cost tags applied to all provisioned resources
+- [ ] CI/CD pipeline has security scanning step
+
+- Load `references/systems-reasoning.md` for verification context
+- Reliability verification → load `references/systems-reliability.md`
+- Load `references/verification-patterns.md` → use "Infrastructure Phases" checklist
+
+**Mobile Development** — activate when CONTEXT.md contains: React Native, Flutter, iOS, Android, Swift, Kotlin, mobile, app, Expo, Xcode, Gradle, CocoaPods, offline, push notification, deep link, app store, TestFlight, APK, IPA.
+
+When mobile is detected:
+- Load `references/mobile-code-patterns.md` — use the anti-pattern summary table to scan for memory leaks, missing cleanup, unoptimized images, etc.
+- Apply **mobile verification rigor:**
+
+1. **Offline behavior verification:** Disable network and verify the app degrades gracefully — no crashes, no blank screens, cached data displayed.
+2. **App lifecycle verification:** Test background → foreground transitions. State must persist across lifecycle events.
+3. **Platform parity:** Verify feature works on both iOS and Android (or document intentional platform differences).
+4. **Performance on low-end devices:** Test on minimum-spec target device. Frame rate must stay above 30fps for UI interactions.
+5. **Deep link verification:** All registered deep links must resolve correctly and handle invalid parameters gracefully.
+
+**Additional verification checks for mobile projects:**
+- [ ] No memory leaks from event listeners or subscriptions (useEffect cleanup)
+- [ ] Images cached and sized appropriately for device density
+- [ ] Push notification handling works in foreground, background, and killed states
+- [ ] Keyboard does not obscure input fields
+- [ ] App handles permission denial gracefully (camera, location, notifications)
+- [ ] Splash screen and app icon render correctly on all device sizes
+
+- Load `references/mobile-reasoning.md` for verification context
+- Architecture verification → load `references/mobile-architecture.md`
+
+**Desktop Development** — activate when CONTEXT.md contains: Electron, Tauri, desktop, window management, IPC, tray, system tray, main process, renderer, native app, installer, auto-update, NSIS, DMG, AppImage, menubar, titlebar.
+
+When desktop is detected:
+- Load `references/desktop-code-patterns.md` — use the anti-pattern summary table to scan for IPC security holes, memory leaks, missing error handling in main process, etc.
+- Apply **desktop verification rigor:**
+
+1. **IPC security verification:** All IPC channels must validate sender and sanitize arguments. Unsanitized IPC = CRITICAL FAIL.
+2. **Memory leak detection:** Run the app for extended period and monitor memory growth. Monotonically increasing memory = FAIL.
+3. **Cross-platform verification:** Verify on Windows, macOS, and Linux (or document platform scope). Platform-specific bugs are common.
+4. **Installer verification:** Install, run, update, and uninstall cycle must complete without errors on each target platform.
+5. **Startup time check:** Measure cold start time. >3s on modern hardware triggers WARNING.
+
+**Additional verification checks for desktop projects:**
+- [ ] Window state (size, position) persisted across restarts
+- [ ] Menu items and keyboard shortcuts work correctly
+- [ ] File associations registered correctly (if applicable)
+- [ ] Auto-update downloads, verifies, and applies correctly
+- [ ] App handles multiple instances correctly (single-instance lock or multi-window)
+- [ ] Tray icon and context menu functional (if applicable)
+
+- Load `references/desktop-reasoning.md` for verification context
+- Architecture verification → load `references/desktop-architecture.md`
+
+**Data Analysis** — activate when CONTEXT.md contains: pandas, numpy, scipy, statistics, EDA, exploratory data analysis, visualization, matplotlib, seaborn, plotly, hypothesis testing, p-value, A/B test, regression analysis, correlation, distribution, Jupyter, notebook.
+
+When data analysis is detected:
+- Load `references/data-analysis-code-patterns.md` — use the anti-pattern summary table to scan for p-hacking, incorrect test assumptions, misleading visualizations, etc.
+- Apply **analytical verification rigor:**
+
+1. **Assumption verification:** Every statistical test must have its assumptions explicitly checked (normality, independence, equal variance, etc.). Unchecked assumptions = FAIL.
+2. **Reproducibility check:** Analysis must produce identical results when re-run with the same seed and data. Non-reproducible results = FAIL.
+3. **Effect size reporting:** P-values alone are insufficient. Effect size and confidence intervals must be reported alongside significance.
+4. **Visualization integrity:** Charts must have labeled axes, appropriate scales, and no misleading truncation or aggregation.
+5. **Data leakage check:** If analysis informs a model or decision, verify no future data leaked into the analysis.
+
+**Additional verification checks for data analysis projects:**
+- [ ] Sample size sufficient for claimed statistical power
+- [ ] Multiple testing correction applied when testing multiple hypotheses
+- [ ] Outlier handling documented and justified
+- [ ] Missing data handling documented (imputation method, exclusion criteria)
+- [ ] Results robust to reasonable perturbations of methodology
+- [ ] All data transformations logged and reversible
+
+- Load `references/data-analysis-reasoning.md` for verification context
+- Methods verification → load `references/data-analysis-methods.md`
+
+**Data Engineering** — activate when CONTEXT.md contains: pipeline, ETL, ELT, Airflow, Spark, dbt, Kafka, Flink, warehouse, BigQuery, Snowflake, Redshift, data lake, Parquet, Avro, schema registry, orchestration, DAG, data quality, lineage.
+
+When data engineering is detected:
+- Load `references/data-engineering-code-patterns.md` — use the anti-pattern summary table to scan for non-idempotent operations, missing schema validation, unbounded queries, etc.
+- Apply **pipeline verification rigor:**
+
+1. **Idempotency verification:** Re-run every pipeline stage and verify output is identical. Non-idempotent operations = FAIL.
+2. **Schema validation:** Input and output schemas must be validated at pipeline boundaries. Schema drift without handling = FAIL.
+3. **Data quality checks:** Row counts, null rates, and value distributions must be verified at each pipeline stage against expectations.
+4. **Late data handling:** Verify pipeline behavior when data arrives late or out of order. Silent data loss = CRITICAL FAIL.
+5. **Backfill verification:** Run pipeline in backfill mode and verify historical data is processed correctly without duplication.
+
+**Additional verification checks for data engineering projects:**
+- [ ] DAG dependencies correctly specified (no missing edges)
+- [ ] Retry and failure handling configured for each pipeline stage
+- [ ] SLA monitoring alerts on pipeline delays
+- [ ] Partitioning strategy appropriate for query patterns
+- [ ] Resource cleanup after pipeline completion (temp files, staging tables)
+- [ ] Data lineage documented and traceable end-to-end
+
+- Load `references/data-engineering-reasoning.md` for verification context
+- Pipeline verification → load `references/data-engineering-pipelines.md`
 
 
 ## Hypothesis-Driven Verification
