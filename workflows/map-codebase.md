@@ -34,95 +34,109 @@ If `.planning/codebase/` already exists:
 mkdir -p .planning/codebase
 ```
 
-## 4. Spawn Mapper Agents (Parallel)
+## 4. Spawn Mapper Agents (Team-Based Parallel)
 
-Spawn 4 mapper agents simultaneously, each with a distinct focus area.
+Create a team and spawn 4 mapper agents concurrently, each with a distinct focus area.
 
-### Agent 1: Stack & Integrations
+### 4.1 Create Mapping Team
 
 ```
-Task(
-  subagent_type="nr-mapper",
-  description="Map codebase stack and integrations",
-  prompt="Focus: stack
+TeamCreate(team_name="nr-map-codebase", description="Parallel codebase mapping — 4 focus areas")
+```
 
+### 4.2 Create Tasks in Shared List
+
+```
+TaskCreate(subject="Map stack and integrations",
+  description="Analyze technology stack and external integrations. Write STACK.md and INTEGRATIONS.md to .planning/codebase/.",
+  activeForm="Mapping stack and integrations")
+
+TaskCreate(subject="Map architecture and structure",
+  description="Analyze architecture and directory structure. Write ARCHITECTURE.md and STRUCTURE.md to .planning/codebase/.",
+  activeForm="Mapping architecture and structure")
+
+TaskCreate(subject="Map conventions and testing",
+  description="Analyze coding conventions and testing patterns. Write CONVENTIONS.md and TESTING.md to .planning/codebase/.",
+  activeForm="Mapping conventions and testing")
+
+TaskCreate(subject="Map concerns and technical debt",
+  description="Analyze cross-cutting concerns and technical debt. Write CONCERNS.md to .planning/codebase/.",
+  activeForm="Mapping concerns and technical debt")
+```
+
+### 4.3 Spawn All 4 Mappers (ONE turn for concurrency)
+
+```
+Agent(team_name="nr-map-codebase", name="mapper-stack", subagent_type="nr-mapper",
+  prompt="You are a team member on nr-map-codebase. Check TaskList, claim 'Map stack and integrations'.
+
+Focus: stack
 Analyze this codebase's technology stack and external integrations.
-
 Write these documents to .planning/codebase/:
 - STACK.md -- Languages, runtime, frameworks, dependencies, configuration
 - INTEGRATIONS.md -- External APIs, databases, auth providers, webhooks
 
-Explore thoroughly. Write documents directly. Return confirmation with line counts only."
-)
-```
+Explore thoroughly. Write documents directly. Mark task completed when done.")
 
-### Agent 2: Architecture & Structure
+Agent(team_name="nr-map-codebase", name="mapper-arch", subagent_type="nr-mapper",
+  prompt="You are a team member on nr-map-codebase. Check TaskList, claim 'Map architecture and structure'.
 
-```
-Task(
-  subagent_type="nr-mapper",
-  description="Map codebase architecture",
-  prompt="Focus: architecture
-
+Focus: architecture
 Analyze this codebase's architecture and directory structure.
-
 Write these documents to .planning/codebase/:
 - ARCHITECTURE.md -- Pattern (MVC, microservices, etc.), layers, data flow, abstractions, entry points
 - STRUCTURE.md -- Directory layout, key locations, naming conventions, file organization
 
-Explore thoroughly. Write documents directly. Return confirmation with line counts only."
-)
-```
+Explore thoroughly. Write documents directly. Mark task completed when done.")
 
-### Agent 3: Conventions & Testing
+Agent(team_name="nr-map-codebase", name="mapper-quality", subagent_type="nr-mapper",
+  prompt="You are a team member on nr-map-codebase. Check TaskList, claim 'Map conventions and testing'.
 
-```
-Task(
-  subagent_type="nr-mapper",
-  description="Map codebase conventions and testing",
-  prompt="Focus: quality
-
+Focus: quality
 Analyze this codebase's coding conventions and testing patterns.
-
 Write these documents to .planning/codebase/:
 - CONVENTIONS.md -- Code style, naming patterns, error handling, common patterns
 - TESTING.md -- Test framework, structure, mocking patterns, coverage, test utilities
 
-Explore thoroughly. Write documents directly. Return confirmation with line counts only."
-)
-```
+Explore thoroughly. Write documents directly. Mark task completed when done.")
 
-### Agent 4: Concerns & Technical Debt
+Agent(team_name="nr-map-codebase", name="mapper-concerns", subagent_type="nr-mapper",
+  prompt="You are a team member on nr-map-codebase. Check TaskList, claim 'Map concerns and technical debt'.
 
-```
-Task(
-  subagent_type="nr-mapper",
-  description="Map codebase concerns",
-  prompt="Focus: concerns
-
+Focus: concerns
 Analyze this codebase for cross-cutting concerns and technical debt.
-
 Write this document to .planning/codebase/:
 - CONCERNS.md -- Security patterns, performance considerations, accessibility, tech debt, known issues, TODO/FIXME/HACK inventory
 
-Explore thoroughly. Write document directly. Return confirmation with line counts only."
-)
+Explore thoroughly. Write document directly. Mark task completed when done.")
 ```
 
-**Runtime note:** Use Claude Code `Task()` for parallel subagent dispatch. If Task() is unavailable, execute each mapper focus sequentially in the main context.
+### 4.4 Cleanup Team
+
+```
+SendMessage(type="shutdown_request", recipient="mapper-stack")
+SendMessage(type="shutdown_request", recipient="mapper-arch")
+SendMessage(type="shutdown_request", recipient="mapper-quality")
+SendMessage(type="shutdown_request", recipient="mapper-concerns")
+TeamDelete()
+```
+
+**Sequential fallback:** If TeamCreate is unavailable or team spawning fails, execute each mapper focus sequentially using individual `Task()` calls with identical prompts. The workflow still works — just slower.
 
 ## 5. Collect Results
 
-Wait for all mapper agents to complete.
+Leader checks TaskList for all 4 tasks completed, then verifies:
 
-For each agent:
-- Verify documents were written
+Expected 7 files in `.planning/codebase/`:
+- STACK.md, INTEGRATIONS.md, ARCHITECTURE.md, STRUCTURE.md, CONVENTIONS.md, TESTING.md, CONCERNS.md
+
+For each expected file:
+- Verify file exists and is non-empty
 - Note line counts for summary
 - Log any issues
 
-If an agent fails:
-- Log the failure
-- Attempt to re-spawn once
+If a mapper agent fails:
+- Re-spawn once with individual `Task()` call using same prompt
 - If still fails, note the gap in summary
 
 ## 6. Write Summary
@@ -142,6 +156,23 @@ Create `.planning/codebase/SUMMARY.md`:
 | CONVENTIONS.md | [N] | Code style, patterns |
 | TESTING.md | [N] | Test framework, coverage |
 | CONCERNS.md | [N] | Tech debt, security, performance |
+
+## Architecture Overview
+
+{Generate a Mermaid `graph TD` synthesizing the top-level architecture from ARCHITECTURE.md. This is the visual entry point for understanding the codebase. Adapt to detected domain — reference `references/visualization-patterns.md`.}
+
+```mermaid
+graph TD
+    subgraph Layer1["[Layer]"]
+        M1["[Module]"]
+        M2["[Module]"]
+    end
+    subgraph Layer2["[Layer]"]
+        M3["[Module]"]
+    end
+    M1 --> M3
+    M2 --> M3
+```
 
 ## Key Findings
 [Top 3-5 architectural observations from across all documents]

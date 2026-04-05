@@ -10,7 +10,7 @@ echo " NR ► Installing Netrunner"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
 # Create directories
-mkdir -p "$NR_DIR"/{bin,workflows,templates,references,overlays}
+mkdir -p "$NR_DIR"/{bin,workflows,templates,references,examples}
 mkdir -p "$CLAUDE_DIR/commands/nr"
 mkdir -p "$CLAUDE_DIR/agents"
 
@@ -36,16 +36,11 @@ done
 cp "$SCRIPT_DIR/bin/"* "$NR_DIR/bin/"
 chmod +x "$NR_DIR/bin/"* 2>/dev/null || true
 
-# Templates
-cp "$SCRIPT_DIR/templates/"* "$NR_DIR/templates/" 2>/dev/null || true
+# Templates (recursive — has subdirectories)
+cp -r "$SCRIPT_DIR/templates/"* "$NR_DIR/templates/" 2>/dev/null || true
 
 # References
 cp "$SCRIPT_DIR/references/"* "$NR_DIR/references/" 2>/dev/null || true
-
-# Overlays (if present)
-if [ -d "$SCRIPT_DIR/overlays" ]; then
-  cp "$SCRIPT_DIR/overlays/"* "$NR_DIR/overlays/" 2>/dev/null || true
-fi
 
 # Examples (if present)
 if [ -d "$SCRIPT_DIR/examples" ]; then

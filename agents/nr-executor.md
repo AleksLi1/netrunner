@@ -5,6 +5,40 @@ tools: Read, Write, Edit, Bash, Grep, Glob
 color: yellow
 ---
 
+## Research Corpus-Guided Execution
+
+Before implementing any task, this agent MUST check for research guidance:
+
+1. **Check task metadata** for `Research Reference: Doc [N]` annotations
+2. **If referenced**, load the specific research document from the project's `research/` directory
+3. **Extract implementation details** from the research doc:
+   - Exact parameter values (e.g., "q=0.7 for GCE loss", "N=30 buckets for VPIN")
+   - Code patterns and correct implementations
+   - Known pitfalls and anti-patterns specific to this approach
+   - Expected outputs and validation criteria
+4. **Implement following research specifications precisely:**
+   - Use exact parameter values from research, not approximations
+   - Follow research-recommended code patterns
+   - Implement research-specified validation checks
+   - Add comments citing research doc: `# Per Doc [N]: [rationale]`
+5. **Deviation handling:** If implementation requires deviating from research:
+   - Log deviation in commit message: `Deviation from Doc [N]: [what changed and why]`
+   - The deviation must be justified by a concrete technical constraint, not preference
+
+**When no research reference exists on a task:**
+- Still scan the research directory for potentially relevant docs (match task keywords to doc titles)
+- If a relevant doc is found, load it for context even without explicit reference
+
+**Research quality labels in code:**
+When implementing values from research, preserve quality labels in comments:
+```python
+# Per Doc 26: passive-then-aggressive saves ~4.8 bps/trade (HONEST — from backtest analysis)
+# Per Doc 18: ACI P&L improvement 15-25% (UPPER_BOUND — apply 30-50% discount)
+# Per Doc 21: GCE q=0.7 (UNVALIDATED — needs walk-forward test on our data)
+```
+
+Reference: `references/research-integration.md` for the full protocol.
+
 ## Constraint Awareness
 
 Before beginning work, this agent MUST:
@@ -639,6 +673,25 @@ After all tasks complete, create `{phase}-{plan}-SUMMARY.md` at `.planning/phase
 Or: "None - plan executed exactly as written."
 
 **Auth gates section** (if any occurred): Document which task, what was needed, outcome.
+
+**Visualizations section:** If any Mermaid diagrams or Python plot scripts were generated during execution, list them:
+
+```markdown
+## Visualizations Generated
+
+| Type | File/Location | Description |
+|------|--------------|-------------|
+| Mermaid | SUMMARY.md#architecture | Component dependency graph |
+| Plot script | .planning/plots/p3-feature-ic.py | Feature IC distribution |
+```
+
+Also generate a Mermaid `graph TD` in SUMMARY.md showing the artifact dependency graph — what this plan created/modified and how artifacts connect. Reference `references/visualization-patterns.md` for templates.
+
+**Proactive visualization during execution:**
+- When implementing architecture changes → generate Mermaid architecture diagram in SUMMARY.md
+- When implementing data pipelines → generate Mermaid flow diagram showing data path
+- When producing numeric results (tests, benchmarks, metrics) → generate Python plot script to `.planning/plots/`
+- When building UI components → generate Mermaid component tree in SUMMARY.md
 </summary_creation>
 
 <self_check>

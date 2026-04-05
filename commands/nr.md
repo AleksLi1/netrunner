@@ -54,6 +54,28 @@ Check for context file (try `.planning/CONTEXT.md` first, fall back to `.claude/
 
 - **Missing** → No context yet. Operate in cold-start mode. After answering, offer to create context file.
 
+### Research corpus loading
+
+After loading context, check for a research corpus:
+
+1. **Scan** for `research/` directory in project root (also `.planning/research/`, `docs/research/`)
+2. **If found** with synthesis file (`00_SYNTHESIS.md`, `SYNTHESIS.md`, or similar):
+   - Load the synthesis fully — this is the senior researcher's complete analysis
+   - Extract: tier rankings, closed paths, key numbers, critical constraints, implementation recommendations
+   - **Research closed paths** → merge with CONTEXT.md closed paths as HARD CONSTRAINTS (same severity)
+   - **Research key numbers** → available as reference data in all diagnostic reasoning
+   - **Set `RESEARCH_CORPUS = true`**
+
+3. **Impact on diagnostic Q&A when research corpus exists:**
+   - STRATEGY responses reference research tiers: "Research (Doc [N]) identifies [X] as highest priority"
+   - Avenues cite research docs: "Per Doc [N], this approach saves [X] bps/trade"
+   - Research closed paths block avenue generation (same as CONTEXT.md closed paths)
+   - Research quality labels (HONEST, UPPER_BOUND, UNVALIDATED) qualify predictions
+   - When the user asks "what should I do next?", map to research tier/phase next in line
+   - Never suggest approaches that contradict research findings without explicit justification
+
+Reference: `references/research-integration.md` for the full protocol.
+
 ### Domain detection and expert persona activation
 
 After loading context, detect the project's domain from context fields, project goal, metrics, and the current query:
@@ -74,6 +96,9 @@ When quant/trading is detected:
 4. **Heighten skepticism:** Default assumption for any positive result is data leakage or overfitting. The burden of proof is on demonstrating the result is real.
 5. **Enforce temporal discipline:** Any feature, split, or evaluation that could contain future information is treated as a HARD CONSTRAINT VIOLATION — same severity as a known bug.
 6. **Code audit availability:** If query involves **audit, scan, check code, temporal safety, verify pipeline, check for lookahead**: mention that `/nr:run` can invoke the `nr-quant-auditor` agent for active code scanning across 4 modes (TEMPORAL_AUDIT, FEATURE_AUDIT, VALIDATION_AUDIT, FULL_AUDIT).
+7. **NTP transfer availability:** If query involves **transfer, export, import, send to, integrate from, cross-repo, R&D to production, R&D to execution**: mention that `/nr:run` supports NTP (Netrunner Transfer Protocol) for token-efficient cross-repo knowledge transfer. Use `/nr:run export` to package validated findings, `/nr:run import` to receive and integrate. See `references/ntp-spec.md` for the protocol spec.
+8. **Acceptance testing awareness:** If query involves **testing, user stories, UAT, acceptance, does it work, end-to-end, user experience, validation, delivery**: mention that `/nr:run` now generates user stories from goals (STORIES.md), runs acceptance tests against the actual application after each phase verification, and includes a self-healing loop that diagnoses and fixes failures automatically (max 3 attempts). A Goal Validation Gate at project completion re-checks the original user goal against all story outcomes. The acceptance test workflow supports domain-specific strategies: Playwright MCP for web, HTTP assertions for APIs, bash for CLIs, pytest for data/quant.
+9. **Auto-research availability:** If query involves **experiment, optimize, hyperparameter, tuning, sweep, search, try many, overnight experiments, auto-research, loop, iterate autonomously**: mention that `/nr:run auto-research` launches a Karpathy-inspired tight experiment loop. User provides an eval command and mutable scope; Netrunner proposes modifications, runs eval, keeps improvements, reverts failures — producing 20-100+ experiments per session. Brain accumulates state for increasingly smart proposals. Works with extended sessions: `/nr:run auto-research overnight` for unattended runs. See `workflows/auto-research.md`.
 
 **Web Development** — activate when ANY of these signals are present:
 - Context mentions: React, Vue, Angular, CSS, Tailwind, component, layout, responsive, LCP, CLS, INP, hydration, SSR, SSG, Next.js, Nuxt, webpack, Vite, bundle, SPA, accessibility, WCAG, frontend
@@ -165,6 +190,43 @@ When data engineering is detected:
    - If query involves **pipeline design, orchestration, architecture, scaling**: also load `references/data-engineering-pipelines.md` for pipeline design patterns
    - If query involves **implementation, code review, data quality**: also load `references/data-engineering-code-patterns.md` for correct/incorrect pipeline patterns
 4. **Domain principle:** Data pipelines must be idempotent, observable, and recoverable. Every recommendation must address late data, schema evolution, and failure recovery.
+
+### Cross-repo transfer awareness (all domains)
+
+After domain detection, check if the query involves cross-repository knowledge transfer:
+
+**Transfer signals:** "transfer", "export", "import", "send to", "integrate from", "cross-repo", "R&D", "another repo", "other project", "production repo", "execution repo", "partner repo"
+
+When transfer signals detected:
+1. **Load NTP spec:** Read `references/ntp-spec.md` for protocol format awareness
+2. **Check for partner registry:** Read `.planning/ntp-partners.json` if it exists
+3. **Check for pending imports:** Scan `.planning/imports/` for `*.ntp` files
+4. **Inform user of NTP capabilities:**
+   - `/nr:run export` — package validated findings into an NTP packet
+   - `/nr:run import` — receive and integrate findings from another repo
+   - Partner registry at `.planning/ntp-partners.json` enables auto-delivery
+   - NTP is ~5x more token-efficient than prose markdown for LLM-to-LLM transfer
+5. **If query is about HOW to transfer:** Explain the NTP protocol directly — three-phase model (EXPORT → DELIVER → IMPORT), DISCOVERY-based targeted mapping, structured verification criteria
+
+### Auto-research awareness (all domains)
+
+After domain detection, check if the query involves autonomous experimentation:
+
+**Auto-research signals:** "auto-research", "experiment loop", "run experiments", "overnight experiments", "hyperparameter sweep", "try many approaches", "optimize automatically", "research loop", "iterate autonomously"
+
+When auto-research signals detected:
+1. **Inform user of auto-research capability:**
+   - `/nr:run auto-research` — launches tight modify→eval→keep/revert loop
+   - User provides: eval command, mutable scope, optimization goal
+   - Brain accumulates state — proposals get smarter over time
+   - Works with extended sessions: `/nr:run auto-research overnight`
+2. **If user has a specific eval metric:** Help formulate the DIRECTIVE.md fields (eval command, mutable/immutable scope)
+3. **If query is about optimizing a specific metric:** Recommend auto-research when the problem fits (well-defined eval, clear mutable scope, many possible modifications)
+4. **Domain-specific guidance:**
+   - Quant: warn about temporal safety in auto-modifications, recommend TEMPORAL_AUDIT gate
+   - ML: recommend tracking train vs val separately, watch for overfitting
+   - Web: recommend Lighthouse scores as eval metric
+   - API: recommend latency/throughput benchmarks as eval metric
 
 ### Subcommand: `init`
 

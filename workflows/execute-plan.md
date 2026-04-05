@@ -76,8 +76,88 @@ Track: `PLAN_START_TIME`, `TASK_COUNT=0`, `TASK_COMMITS=()`.
 | Decision | C (main) | Execute entirely in main context |
 </step>
 
+<step name="wave_team_dispatch">
+## Wave-Based Team Dispatch
+
+Group tasks from the plan into execution waves based on dependencies. Independent tasks go in the same wave; dependent tasks go in later waves.
+
+**Generate wave structure diagram:** Before dispatching, emit a Mermaid `graph TD` showing the wave execution plan — tasks grouped by wave with dependency edges. Embed in the phase directory as part of execution tracking. Reference `references/visualization-patterns.md` for the Task Dependency Graph template.
+
+```mermaid
+graph TD
+    subgraph W1["Wave 1 (parallel)"]
+        T1["Task 1: {name}"]
+        T2["Task 2: {name}"]
+    end
+    subgraph W2["Wave 2"]
+        T3["Task 3: {name}"]
+    end
+    T1 --> T3
+    T2 --> T3
+```
+
+### Single-Task Wave
+
+If a wave has only 1 task, execute directly — no team overhead:
+
+```
+Task(subagent_type="nr-executor", description="Execute [task name]",
+  prompt="Execute this task from Phase [N] plan.
+TASK: [details from PLAN.md]
+CONSTRAINT FRAME: [from load_brain_constraints step]
+Commit each logical unit atomically.")
+```
+
+### Multi-Task Wave (Team-Based Parallel)
+
+If a wave has 2+ independent tasks:
+
+**1. Create wave team:**
+```
+TeamCreate(team_name="nr-exec-{phase}-{plan}-w{wave}", description="Wave {W}: {task_count} parallel tasks")
+```
+
+**2. Create tasks in shared list:**
+```
+For each TASK in wave:
+  TaskCreate(subject="Execute: [task name]",
+    description="[task details from PLAN.md]\nCONSTRAINT FRAME: [constraints, closed paths]\nCommit each logical unit atomically.",
+    activeForm="Executing [task name]")
+```
+
+**3. Spawn one nr-executor per task (ALL in one turn for concurrency):**
+```
+For each TASK in wave:
+  Agent(team_name="nr-exec-{phase}-{plan}-w{wave}", name="exec-task-{N}",
+    subagent_type="nr-executor",
+    prompt="You are a team member. Check TaskList, claim your task, execute it.
+    TASK: [task details]
+    CONSTRAINT FRAME: [constraints]
+    Commit each logical unit atomically.
+    Mark task completed when done.")
+```
+
+**4. Leader monitors TaskList** for all tasks completed. Collect commit hashes from outputs.
+
+**5. Cleanup:**
+```
+SendMessage(type="shutdown_request", recipient="exec-task-{N}") for each member
+TeamDelete()
+```
+
+**Sequential fallback:** If TeamCreate is unavailable or team spawning fails, execute each task in the wave sequentially using individual `Task()` calls.
+
+### Wave Transition
+
+After each wave completes:
+- Verify all tasks succeeded via TaskList
+- Failed tasks: one automatic retry (single `Task()` call), then spawn nr-debugger if still failing
+- Record commit hashes: `TASK_COMMITS+=("Task ${TASK_NUM}: ${TASK_COMMIT}")`
+- Proceed to next wave only when current wave is fully complete
+</step>
+
 <step name="execute_tasks">
-For each task in the plan:
+For each task (within a wave, either direct or team-dispatched):
 
 1. **Pre-generation gate** (from brain protocol):
    - Does this approach violate any Hard Constraint? -> STOP
@@ -183,6 +263,8 @@ Title: `# Phase [X] Plan [Y]: [Name] Summary`
 One-liner SUBSTANTIVE: "JWT auth with refresh rotation using jose library" not "Authentication implemented"
 
 Include: duration, start/end times, task count, file count.
+
+**Visualizations section:** Add a `## Visualizations Generated` section listing any Mermaid diagrams or Python plot scripts created during execution. Also generate a Mermaid `graph TD` artifact dependency graph showing what the plan created/modified and how artifacts connect. Reference `references/visualization-patterns.md`.
 </step>
 
 <step name="update_context">

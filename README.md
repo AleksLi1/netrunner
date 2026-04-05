@@ -1,175 +1,182 @@
 # Netrunner
 
-A [Claude Code](https://claude.ai/code) skill that transforms vague queries into precise, constraint-aware questions — collapsing the LLM solution space to the right answer before generating one.
+**Tell Claude Code what to build. Walk away. Come back to working code.**
 
----
-
-## The problem
-
-LLMs have latent knowledge that is frame-dependent. The same question asked from different angles activates entirely different knowledge. A query like *"make this better"* or *"do a deep dive"* produces a probability distribution over answers weighted toward generic responses — because nothing has ruled out the wrong ones.
-
-The solution isn't better prompts. It's **surfacing binding constraints before answering**:
-- What's the concrete failure mode? (not "it's not working" — actual numbers)
-- What can't change? (architecture locked, retraining too expensive, must be causal-only)
-- What's already been tried? (don't suggest what's been ruled out)
-
-Once these are known, the solution space collapses from "all of ML / all of software engineering" to a small, targeted set.
-
-Netrunner automates this process for any project.
-
----
-
-## How it works
+Netrunner is a skill for [Claude Code](https://docs.anthropic.com/en/docs/claude-code) that turns it into an autonomous software engineer. It scopes projects, creates phased roadmaps, spawns specialized agents, executes plans, verifies results, debugs failures, and learns from every action through a persistent brain.
 
 ```
-/nr <query>
-      │
-      ▼
- Load .claude/netrunner/context.md
- (project constraints, current state, what's been tried)
-      │
-      ▼
- Classify query type
- (training / evaluation / architecture / debugging / research / ...)
-      │
-      ▼
- Ask 2–3 targeted UI questions
- (options generated from context.md — specific, not generic)
-      │
-      ▼
- Produce structured response:
-   • Active Constraint Frame (reframed query + active constraints)
-   • Current State Analysis (why the problem exists)
-   • 2–3 Avenues (mechanism / expected gain / risk / effort)
-   • Recommendation
-      │
-      ▼
- Update context.md with new knowledge
+/nr:run "build a REST API with JWT auth, rate limiting, and PostgreSQL"
 ```
 
-The context file is a living knowledge base — it gets updated after every session that surfaces new information. Over time, each session starts closer to the right answer.
+That's it. Netrunner handles the rest.
 
 ---
 
-## Installation
+## Install
 
-**macOS / Linux:**
 ```bash
-curl -sL https://raw.githubusercontent.com/your-username/netrunner/main/install.sh | bash
+npm install -g netrunner-cc
 ```
 
-Or manually:
+Verify it works:
+```
+/nr:run "hello"
+```
+
+<details>
+<summary>Manual install (without npm)</summary>
+
 ```bash
-mkdir -p ~/.claude/commands
-cp nr.md ~/.claude/commands/nr.md
+git clone https://github.com/netrunner-cc/netrunner.git
+cd netrunner
+bash install.sh          # macOS/Linux
+powershell -File install.ps1  # Windows
+```
+</details>
+
+---
+
+## Three commands. That's all.
+
+### `/nr:run` — The engine
+
+Autonomous execution. Describe what you want, Netrunner figures out the how.
+
+```bash
+/nr:run "build a real-time chat app"     # New project from scratch
+/nr:run                                   # Resume exactly where you left off
+/nr:run "add dark mode"                   # Extend an existing project
+/nr:run "fix the login bug"              # Debug with full project context
+/nr:run overnight                         # 8-hour autonomous session
 ```
 
-**Windows (PowerShell):**
-```powershell
-irm https://raw.githubusercontent.com/your-username/netrunner/main/install.ps1 | iex
+**What happens under the hood:**
+
+```
+Your description
+  → SCOPE (classify, ask 2-3 questions, create roadmap)
+  → PLAN (constraint-aware, builds on prior phases)
+  → EXECUTE (parallel agents, atomic commits)
+  → VERIFY (success criteria, integration tests)
+  → TRANSITION (brain learns, next phase)
+  → ... repeats until done
 ```
 
-Or manually:
-```powershell
-New-Item -ItemType Directory -Force -Path "$env:USERPROFILE\.claude\commands" | Out-Null
-Copy-Item nr.md "$env:USERPROFILE\.claude\commands\nr.md"
+Every action is preceded by a brain assessment that checks constraints, avoids repeated failures, and stays aligned with the project hypothesis.
+
+### `/nr` — The expert
+
+Diagnostic Q&A. Ask anything about your project — Netrunner loads your project's full context before answering.
+
+```bash
+/nr why is my test coverage dropping
+/nr what's the highest-leverage thing to do next
+/nr explain how the auth middleware works
+```
+
+It classifies your query, activates a domain-specific expert persona, and produces constraint-aware answers that never repeat failed approaches.
+
+### `/nr:update` — Self-update
+
+```bash
+/nr:update
 ```
 
 ---
 
-## Usage
+## The brain
 
-### Initialise a project
+Every project gets a `.planning/` directory with a **brain** (`CONTEXT.md`) that persists across sessions:
 
-Run once per project to build the context file from your repo:
+- **Hard constraints** — what can't change
+- **What's been tried** — approaches with outcomes (never re-suggested)
+- **Diagnostic hypothesis** — the brain's current understanding of the project state
+- **Decision log** — every significant decision with reasoning
 
-```
-/nr init
-```
-
-This reads your README, CLAUDE.md, git history, and key source files to extract:
-- Project goal
-- Current metrics and targets
-- Architecture summary
-- Hard constraints
-- What's been tried (including reverted/removed approaches)
-- Open questions
-
-Output: `.claude/netrunner/context.md` in your project root.
-
-### Ask a question
-
-```
-/nr <your query>
-```
-
-Examples:
-```
-/nr make this better
-/nr why is my accuracy stuck at 55%
-/nr i need you to do a deep dive and figure this out
-/nr improve throughput
-```
-
-Netrunner will ask 2–3 UI questions (failure mode, binding constraint, classification-specific), then produce a structured response with avenues to explore.
-
-### Bypass permissions mode
-
-If you're running Claude Code with `--dangerously-skip-permissions`, UI question cards are suppressed. Netrunner will output the questions as plain text and stop — requiring you to re-run with answers:
-
-```
-/nr improve accuracy -- Q1: hit rate stuck at 55% | Q2: no retraining | Q3: high_hit first
-```
-
-For the best experience, use **default** or **acceptEdits** permissions mode with `/nr`.
+The brain is consulted before every action. It gets smarter with every session.
 
 ---
 
-## Context files
+## 9 specialized agents
 
-Each project gets its own context file at `.claude/netrunner/context.md`. The file tracks:
+| Agent | Role |
+|-------|------|
+| **Planner** | Creates executable plans with dependency graphs and constraint frames |
+| **Executor** | Implements tasks with atomic commits and deviation tracking |
+| **Verifier** | Checks results against success criteria, constraints, and hypothesis |
+| **Researcher** | Investigates unknowns, fills knowledge gaps |
+| **Synthesizer** | Distills research into actionable findings |
+| **Debugger** | Scientific method: hypothesize, test, narrow, fix |
+| **Mapper** | Analyzes codebase architecture and patterns |
+| **Roadmapper** | Creates phased execution plans from requirements |
+| **Quant Auditor** | Scans trading code for temporal contamination and anti-patterns |
 
-| Section | Purpose |
-|---------|---------|
-| **Project Goal** | What you're actually trying to achieve |
-| **Current State** | Metrics, architecture, active work |
-| **Hard Constraints** | What can't change and why |
-| **What Has Been Tried** | Approaches with outcomes — prevents re-suggestion |
-| **Open Questions** | Active frontiers and hypotheses |
-| **Update Log** | Timestamped record of changes |
-
-The file is updated automatically at the end of sessions that surface new knowledge. You can also edit it manually.
-
-See [`context-template.md`](./context-template.md) for the full template, and [`examples/`](./examples/) for real-world examples.
-
----
-
-## Query classification
-
-Netrunner classifies queries into one of:
-
-| Type | Triggers |
-|------|---------|
-| `TRAINING` | loss, convergence, epochs, hyperparameters, learning rate |
-| `EVALUATION` | metrics, backtesting, validation, numbers |
-| `FEATURE_ENGINEERING` | new or modified features, normalisation |
-| `ARCHITECTURE` | model structure, components, design decisions |
-| `DEBUGGING` | broken behaviour, unexpected numbers, regressions |
-| `RESEARCH` | "what if", new approaches, exploring ideas |
-| `TOOLING` | dev tooling, scripts, workflow, performance |
-
-Classification determines which third question is asked and what expert frame is activated in the response.
+Agents run in parallel when tasks are independent. A 5-task phase can dispatch 5 executors simultaneously.
 
 ---
 
-## Why this works
+## 8 domain specializations
 
-> *"I don't have a single right answer waiting to be unlocked. I have a probability distribution over answers, shaped by context. Better context shifts that distribution toward higher-quality responses."*
+Netrunner detects your project's domain and activates a specialized expert persona — with domain-specific reasoning triggers, code pattern libraries, and quality gates.
 
-The constraint frame does three things:
-1. **Rules out already-tried approaches** — eliminates suggestions the project has already exhausted
-2. **Activates the right domain knowledge** — "causal features only + financial regulations + regime change" is a very different activation than "improve model"
-3. **Makes failure modes concrete** — "high_hit stuck at 55%" is more specific than "not working well enough"
+| Domain | Persona |
+|--------|---------|
+| **Quantitative Finance** | Head of quant research. Every result is an artifact until proven otherwise. |
+| **Web / Frontend** | Senior frontend architect. Performance is measured, not assumed. |
+| **API / Backend** | Senior backend architect. Contracts are sacred. |
+| **Systems / Infra** | Senior SRE. Everything fails — how gracefully? |
+| **Mobile** | Senior mobile architect. Offline is the default state. |
+| **Desktop** | Senior desktop architect. Memory is finite. |
+| **Data Analysis** | Senior data scientist. Correlation is not causation. |
+| **Data Engineering** | Senior data platform engineer. Idempotency is non-negotiable. |
+
+Each domain includes: expert reasoning file, 10+ correct/incorrect code pattern pairs, 800+ line deep reference, build workflow with quality gates, and example interactions.
+
+---
+
+## Extended sessions
+
+For big projects, let Netrunner run for hours:
+
+```bash
+/nr:run overnight              # 8 hours
+/nr:run for 3 hours            # Custom duration
+/nr:run extended               # 4 hours
+```
+
+Extended sessions:
+- Suppress confirmation prompts (autonomous decisions logged)
+- Increase cycle cap from 50 to 500
+- When planned work finishes early, proactively improve test coverage, code quality, docs, and performance
+- Gracefully wind down when time expires — no broken state
+
+---
+
+## Crash recovery
+
+State is written to disk after every cycle. If Claude Code crashes mid-session:
+
+```bash
+/nr:run    # Picks up exactly where it left off
+```
+
+---
+
+## Project artifacts
+
+```
+.planning/
+├── PROJECT.md          # Identity and classification
+├── ROADMAP.md          # Phased execution plan
+├── REQUIREMENTS.md     # Tracked requirements
+├── CONTEXT.md          # Brain (constraints, history, hypothesis)
+├── STATE.md            # Current position + crash recovery
+└── phases/
+    └── 01-setup/
+        ├── 01-01-PLAN.md
+        ├── 01-01-SUMMARY.md
+        └── VERIFICATION.md
+```
 
 ---
 

@@ -5,6 +5,42 @@ tools: Read, Write, Bash, Glob, Grep, WebFetch, mcp__context7__*
 color: green
 ---
 
+## Research Corpus Integration
+
+Before planning any phase, this agent MUST check for an existing research corpus:
+
+1. **Scan** for `research/` directory in the project root (also check `.planning/research/`, `docs/research/`)
+2. **If found**, load the synthesis file (`00_SYNTHESIS.md` or similar)
+3. **Map the current phase** to relevant research tiers/items from the synthesis:
+   - Match phase goal keywords to research document topics
+   - Identify which research docs are directly relevant
+   - Extract: recommended approach, expected impact, specific parameters, known pitfalls
+4. **Embed research guidance in the constraint frame:**
+   ```
+   RESEARCH GUIDANCE (from corpus):
+   - Relevant docs: [Doc N: title, Doc M: title]
+   - Recommended approach: [from synthesis]
+   - Expected impact: [from synthesis, labeled UNVALIDATED]
+   - Specific parameters: [exact values from research docs]
+   - Known pitfalls: [from relevant research docs]
+   - Closed paths (research): [confirmed dead ends from synthesis]
+   ```
+5. **Generate tasks that implement research recommendations:**
+   - Each task references its source doc: `Research Reference: Doc [N]`
+   - Use research-specified parameter values (exact, not approximated)
+   - Use research-predicted impacts as success criteria baselines
+   - Include pitfall-avoidance steps from research
+6. **Deviation documentation:** If the plan deviates from research recommendations, document WHY in the plan frontmatter — what new information justifies diverging from the existing analysis
+
+**Research-informed task generation:**
+When the synthesis specifies an implementation approach (e.g., "Compute VPIN directly from kline taker_buy_volume, N=30 buckets"), the plan task MUST:
+- Reference the specific doc number
+- Include the exact parameters
+- Include the validation criteria from research
+- NOT substitute a different approach without documented justification
+
+Reference: `references/research-integration.md` for the full protocol.
+
 ## Constraint Awareness
 
 Before beginning work, this agent MUST:
@@ -1300,6 +1336,8 @@ Map dependencies explicitly before grouping into plans. Record needs/creates/has
 Identify parallelization: No deps = Wave 1, depends only on Wave 1 = Wave 2, shared file conflict = sequential.
 
 Prefer vertical slices over horizontal layers.
+
+**Generate dependency graph visualization:** After computing the graph, embed a Mermaid `graph TD` in PLAN.md showing tasks grouped by wave with dependency edges. Use `subgraph` for wave grouping. Mark checkpoint tasks distinctly. Reference `references/visualization-patterns.md` for the Task Dependency Graph template.
 </step>
 
 <step name="assign_waves">
@@ -1429,6 +1467,21 @@ Return structured planning outcome to orchestrator.
 |------|-------|------------|
 | 1 | {plan-01}, {plan-02} | yes, yes |
 | 2 | {plan-03} | no (has checkpoint) |
+
+### Dependency Graph
+
+```mermaid
+graph TD
+    subgraph Wave1["Wave 1 (parallel)"]
+        P01["{phase}-01: {objective}"]
+        P02["{phase}-02: {objective}"]
+    end
+    subgraph Wave2["Wave 2"]
+        P03["{phase}-03: {objective}"]
+    end
+    P01 --> P03
+    P02 --> P03
+```
 
 ### Plans Created
 

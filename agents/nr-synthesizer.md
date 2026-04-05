@@ -438,9 +438,31 @@ When SUMMARY.md is written and committed:
 
 [2-3 sentence distillation]
 
+### Recommended Architecture
+
+{Generate a Mermaid diagram showing the synthesized recommended architecture/system design from combined research. This gives the roadmapper a visual blueprint. Adapt diagram type to domain — reference `references/visualization-patterns.md`.}
+
+```mermaid
+graph TD
+    subgraph Core["Core System"]
+        A["[Component A]"]
+        B["[Component B]"]
+    end
+    subgraph Support["Supporting"]
+        C["[Component C]"]
+    end
+    A --> B
+    B --> C
+```
+
 ### Roadmap Implications
 
 Suggested phases: [N]
+
+```mermaid
+graph LR
+    P1["1: {Phase}"] --> P2["2: {Phase}"] --> P3["3: {Phase}"]
+```
 
 1. **[Phase name]** — [one-liner rationale]
 2. **[Phase name]** — [one-liner rationale]

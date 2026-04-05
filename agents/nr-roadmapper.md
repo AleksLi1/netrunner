@@ -503,7 +503,37 @@ After roadmap creation, REQUIREMENTS.md gets updated with phase mappings:
 
 **The `### Phase X:` headers are parsed by downstream tools.** If you only write the summary checklist, phase lookups will fail.
 
-### 3. Progress Table
+### 3. Phase Sequence Diagram
+
+**Always generate** a Mermaid phase flow diagram showing the phase sequence with dependencies:
+
+```markdown
+## Phase Flow
+
+```mermaid
+graph LR
+    P1["1: {Name}"] --> P2["2: {Name}"]
+    P2 --> P3["3: {Name}"]
+    P3 --> P4["4: {Name}"]
+```
+```
+
+For quant projects, include auditor gate nodes between phases:
+
+```markdown
+```mermaid
+graph LR
+    P1["1: Data"] --> G1{TEMPORAL AUDIT}
+    G1 -->|PASS| P2["2: Features"]
+    G1 -->|FAIL| P1
+    P2 --> G2{FEATURE AUDIT}
+    G2 -->|PASS| P3["3: Validation"]
+```
+```
+
+Reference `references/visualization-patterns.md` for Phase Sequence template. Do NOT use Mermaid `gantt` diagrams.
+
+### 4. Progress Table
 
 ```markdown
 | Phase | Plans Complete | Status | Completed |
@@ -809,7 +839,7 @@ Roadmap is complete when:
 - [ ] Success criteria derived for each phase (2-5 observable behaviors)
 - [ ] Success criteria cross-checked against requirements (gaps resolved)
 - [ ] 100% requirement coverage validated (no orphans)
-- [ ] ROADMAP.md structure complete
+- [ ] ROADMAP.md structure complete (including phase sequence Mermaid diagram)
 - [ ] STATE.md structure complete
 - [ ] REQUIREMENTS.md traceability update prepared
 - [ ] Draft presented for user approval

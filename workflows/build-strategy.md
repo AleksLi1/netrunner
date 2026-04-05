@@ -10,12 +10,53 @@ This is the gold standard workflow — no shortcuts, no skipped phases.
 - Strategy idea/thesis from user (via run.md BUILD_STRATEGY classification)
 - `.planning/CONTEXT.md` — project context, constraints, prior work
 - Asset class, frequency, target holding period
+- **Research corpus** (if exists) — `research/` directory with synthesis and individual docs
 </inputs>
 
 <prerequisites>
 - Quant persona must be active (2+ detection signals in CONTEXT.md)
-- References loaded: quant-finance.md, strategy-metrics.md, feature-engineering.md, ml-training.md, quant-code-patterns.md
+- References loaded: quant-finance.md, strategy-metrics.md, feature-engineering.md, ml-training.md, quant-code-patterns.md, research-integration.md
 </prerequisites>
+
+<research_corpus_protocol>
+
+## Research Corpus Integration
+
+**Before starting Phase 1**, check for an existing research corpus:
+
+1. **Scan** for `research/` directory in project root (also `.planning/research/`, `docs/research/`)
+2. **If found** with synthesis file (`00_SYNTHESIS.md` or similar):
+   - Load synthesis FULLY — this IS the senior quant's complete analysis
+   - The synthesis replaces most of Phase 1 (Ideation & Research)
+   - Set `RESEARCH_CORPUS = true`
+
+**When `RESEARCH_CORPUS = true`, the entire workflow shifts:**
+
+| Phase | Without Research | With Research Corpus |
+|-------|-----------------|---------------------|
+| 1. Ideation | Spawn 3 researchers, web search, build thesis from scratch | Extract thesis from synthesis. Skip researcher spawns. Write THESIS.md from synthesis findings. Only research truly novel gaps. |
+| 2. Data | Generic data pipeline planning | Use synthesis data acquisition guide (exact sources, endpoints, free data locations). Reference specific docs. |
+| 3. Features | Research feature approaches from web | Use synthesis feature recommendations (exact feature names, parameters, expected ICs). Load specific docs for implementation details. |
+| 4. Validation | Generic walk-forward setup | Use synthesis validation framework recommendations (specific split sizes, purge gaps, metrics). |
+| 5. Model | Explore architectures from literature | Follow synthesis complexity ladder and architecture recommendations. Use research-specified hyperparameters. |
+| 6. Evaluation | Standard evaluation suite | Use synthesis key numbers as comparison baselines. Apply research-specified reality checks (DSR, cost sensitivity). |
+| 7. Production | Generic production setup | Follow synthesis deployment timeline and risk framework. Use research-specified kill switch values. |
+
+**Research-informed constraint frame (added to every phase):**
+```
+RESEARCH CORPUS ACTIVE:
+- Synthesis: [path to synthesis file]
+- Relevant docs this phase: [Doc N, Doc M, ...]
+- Research closed paths: [list from synthesis "Closed Paths" section]
+- Research key numbers: [relevant metrics from synthesis]
+- Expected impact: [from synthesis, labeled UNVALIDATED]
+- Specific parameters: [exact values from research docs]
+```
+
+**Research closed paths are HARD CONSTRAINTS across ALL phases:**
+The synthesis's "Closed Paths" section lists confirmed dead ends that were established through rigorous analysis. These MUST be treated with the same severity as CONTEXT.md hard constraints. Never plan, implement, or suggest approaches that fall within these closed paths.
+
+</research_corpus_protocol>
 
 <phase_enforcement>
 
@@ -37,6 +78,29 @@ PHASE_ORDER = [
 # Forward skipping is NEVER allowed.
 ```
 
+**Generate phase flow diagram** at strategy initialization — write to `.planning/strategy/PIPELINE.md`:
+
+```mermaid
+graph LR
+    P1["1: Ideation"] --> P2["2: Data"]
+    P2 --> G1{TEMPORAL AUDIT}
+    G1 -->|PASS| P3["3: Features"]
+    G1 -->|FAIL| P2
+    P3 --> G2{FEATURE AUDIT}
+    G2 -->|PASS| P4["4: Validation"]
+    G2 -->|FAIL| P3
+    P4 --> G3{VALIDATION AUDIT}
+    G3 -->|PASS| P5["5: Model"]
+    G3 -->|FAIL| P4
+    P5 --> G4{BEATS BASELINE?}
+    G4 -->|YES| P6["6: Evaluation"]
+    G4 -->|NO| P3
+    P6 --> G5{FULL AUDIT}
+    G5 -->|PASS| P7["7: Production"]
+    G5 -->|FAIL| P6
+    P7 --> G6{HUMAN REVIEW}
+```
+
 ### Skip Prevention Logic
 
 Before entering any phase N, verify:
@@ -55,6 +119,50 @@ If any check fails, HALT and report which prerequisite is missing.
 ## Phase 1: IDEATION & RESEARCH
 
 **Goal:** Define what market inefficiency you are exploiting and why it should persist.
+
+### 1.0 Research Corpus Check (BEFORE any research)
+
+**Check for existing research corpus FIRST:**
+
+1. Scan for `research/` directory in project root
+2. If found with synthesis file:
+
+**`RESEARCH_CORPUS = true` → FAST PATH (skip most of Phase 1):**
+
+The research corpus IS the ideation and research phase — it was done by a senior quant researcher. Extract rather than re-research:
+
+**1.0a Extract thesis from synthesis:**
+Read the synthesis's "Executive Summary" and "What We Know" sections. Write `.planning/strategy/THESIS.md` by extracting:
+- Edge hypothesis → from synthesis's core findings
+- Edge source classification → from synthesis's characterization of the alpha source
+- Falsification criteria → from synthesis's key uncertainties and open questions
+
+**1.0b Extract research from corpus:**
+Write `.planning/strategy/RESEARCH.md` by synthesizing the corpus:
+- Academic foundations → cite specific doc numbers with findings
+- Practitioner insights → extract from relevant docs
+- Decay patterns → from synthesis's decay/risk analysis
+- Closed paths → from synthesis's "Closed Paths" section (these become HARD CONSTRAINTS)
+- Key numbers → from synthesis's metrics table
+
+**1.0c Extract strategy profile:**
+Write `.planning/strategy/PROFILE.md` from synthesis's strategy characterization.
+
+**1.0d Gap analysis:**
+Compare synthesis coverage against Phase 1 requirements. If gaps exist (unlikely for a thorough corpus), spawn a SINGLE researcher for gap-fill only:
+```
+Task(subagent_type="nr-researcher", description="Gap-fill research",
+  prompt="Existing research corpus has [N] docs covering [topics].
+  GAPS to fill: [specific gaps not covered by existing research].
+  Do NOT re-research covered topics. Cite existing docs where possible.
+  Write gap findings to .planning/strategy/RESEARCH-GAPS.md")
+```
+
+**Skip to 1.4 (Strategy Profile) after corpus extraction.** Do NOT spawn the 3-researcher team below — the senior quant already did that work.
+
+---
+
+**`RESEARCH_CORPUS = false` → STANDARD PATH (full Phase 1):**
 
 ### 1.1 Edge Hypothesis Definition
 
@@ -77,26 +185,97 @@ Classify the strategy's edge into one or more categories:
 | **Modeling** | Superior signal extraction from public data | Weeks to months | ML alpha, factor timing |
 | **Structural** | Exploiting market structure constraints | Years | Index rebalancing, regulatory effects |
 
-### 1.3 Literature Research
+### 1.3 Literature Research (Team-Based Parallel)
 
-Spawn researcher agent for academic and practitioner review:
+Spawn 3 researcher agents concurrently for comprehensive review:
 
+**Create research team:**
 ```
-Task(
-  subagent_type="nr-researcher",
-  description="Research strategy thesis and prior art",
-  prompt="Research the following strategy thesis:
+TeamCreate(team_name="nr-research-strategy", description="Parallel strategy research — 3 focus areas")
+```
 
-  Thesis: [user's strategy description]
+**Create research tasks:**
+```
+TaskCreate(subject="Research: academic literature",
+  description="Find academic papers on this edge type (last 10 years), theoretical foundations, and known decay patterns. Write to .planning/strategy/RESEARCH-ACADEMIC.md.",
+  activeForm="Researching academic literature")
+
+TaskCreate(subject="Research: practitioner insights",
+  description="Find practitioner reports, fund letters, and real-world implementation examples for this strategy class. Estimate capacity from literature. Write to .planning/strategy/RESEARCH-PRACTITIONER.md.",
+  activeForm="Researching practitioner insights")
+
+TaskCreate(subject="Research: decay and pitfalls",
+  description="Research common pitfalls specific to this strategy class, signal decay patterns, and historical failure modes. Write to .planning/strategy/RESEARCH-DECAY.md.",
+  activeForm="Researching decay patterns")
+```
+
+**Spawn 3 researchers (ONE turn for concurrency):**
+```
+Agent(team_name="nr-research-strategy", name="researcher-academic", subagent_type="nr-researcher",
+  prompt="You are a team member on nr-research-strategy. Check TaskList, claim 'Research: academic literature'.
+
+  Strategy thesis: [user's strategy description]
   Asset class: [asset class]
   Frequency: [frequency]
 
   Find:
   1. Academic papers on this type of edge (last 10 years)
-  2. Known decay patterns for this edge type
-  3. Common pitfalls specific to this strategy class
-  4. Estimated capacity from literature
+  2. Theoretical foundations for why this edge exists
+  3. Known decay patterns from academic research
 
+  Write to: .planning/strategy/RESEARCH-ACADEMIC.md
+  Mark task completed when done.")
+
+Agent(team_name="nr-research-strategy", name="researcher-practitioner", subagent_type="nr-researcher",
+  prompt="You are a team member on nr-research-strategy. Check TaskList, claim 'Research: practitioner insights'.
+
+  Strategy thesis: [user's strategy description]
+  Asset class: [asset class]
+  Frequency: [frequency]
+
+  Find:
+  1. Practitioner reports and fund letters on this strategy class
+  2. Real-world implementation examples and lessons
+  3. Estimated capacity from industry sources
+
+  Write to: .planning/strategy/RESEARCH-PRACTITIONER.md
+  Mark task completed when done.")
+
+Agent(team_name="nr-research-strategy", name="researcher-decay", subagent_type="nr-researcher",
+  prompt="You are a team member on nr-research-strategy. Check TaskList, claim 'Research: decay and pitfalls'.
+
+  Strategy thesis: [user's strategy description]
+  Asset class: [asset class]
+  Frequency: [frequency]
+
+  Find:
+  1. Common pitfalls specific to this strategy class
+  2. Signal decay patterns and historical failure modes
+  3. Crowding risk and capacity constraints
+
+  Write to: .planning/strategy/RESEARCH-DECAY.md
+  Mark task completed when done.")
+```
+
+**Merge and cleanup:**
+```
+# Leader merges 3 research files into unified RESEARCH.md
+# Merge: RESEARCH-ACADEMIC.md + RESEARCH-PRACTITIONER.md + RESEARCH-DECAY.md → RESEARCH.md
+
+SendMessage(type="shutdown_request", recipient="researcher-academic")
+SendMessage(type="shutdown_request", recipient="researcher-practitioner")
+SendMessage(type="shutdown_request", recipient="researcher-decay")
+TeamDelete()
+```
+
+**Sequential fallback:** If TeamCreate is unavailable or team spawning fails, use a single researcher `Task()` call:
+```
+Task(
+  subagent_type="nr-researcher",
+  description="Research strategy thesis and prior art",
+  prompt="Research the following strategy thesis:
+  Thesis: [user's strategy description]. Asset class: [asset class]. Frequency: [frequency].
+  Find: 1) Academic papers (last 10 years), 2) Known decay patterns, 3) Common pitfalls, 4) Estimated capacity.
   Output: .planning/strategy/RESEARCH.md"
 )
 ```
@@ -132,6 +311,27 @@ This is the research phase. No automated gate, but the edge hypothesis MUST be w
 ## Phase 2: DATA INFRASTRUCTURE
 
 **Goal:** Build the data pipeline with ironclad temporal safety guarantees.
+
+### 2.0 Research Corpus Data Guidance (if `RESEARCH_CORPUS = true`)
+
+Before planning data infrastructure from scratch, load research guidance:
+1. **Scan synthesis** for data-related sections (data acquisition, data sources, data schema)
+2. **Load relevant research docs** — look for docs covering: data acquisition, data sources, API endpoints, data formats
+3. **Extract specific data guidance:**
+   - Exact data sources with URLs/endpoints
+   - Free vs paid data availability
+   - Data resolution and history depth
+   - Known data quality issues
+   - Publication delays per data source
+4. **Use research-specified sources as the authoritative data plan** — don't re-research what's already known
+5. **Only research NEW data sources** not covered by the corpus
+
+Example (from a typical quant research corpus):
+```
+Research says (Doc 22): "Binance Vision has 5 years of OI, long/short ratios,
+taker volume at 5-min resolution. Premium index klines at 1-min, full history. Zero cost."
+→ Use these EXACT sources. Don't web-search for alternatives.
+```
 
 ### 2.1 Data Source Identification
 
@@ -240,6 +440,30 @@ Task(
 
 **Goal:** Build predictive features with temporal safety and statistical rigor.
 
+### 3.0 Research Corpus Feature Guidance (if `RESEARCH_CORPUS = true`)
+
+Before designing features from scratch, load research guidance:
+1. **Scan synthesis** for feature-related tiers/recommendations
+2. **Load relevant research docs** — look for docs covering: feature engineering, specific feature types, IC analysis, feature selection
+3. **Extract specific feature guidance:**
+   - Exact feature names and computation formulas
+   - Expected IC ranges per feature
+   - Known pitfalls per feature type (e.g., "real VPIN baseline is 0.117, not 0.45")
+   - Recommended feature count and selection methodology
+   - Feature groups with expected decorrelation properties
+4. **Use research-specified features as the implementation plan:**
+   - Each feature task references the specific doc: "Implement features from Doc [N]"
+   - Use exact parameter values: "N=30 buckets for VPIN", "480x premium basis frequency"
+   - Apply research-specified temporal safety rules per feature
+5. **Feature selection methodology** — follow research-recommended pipeline if specified
+
+Example (from a typical quant research corpus):
+```
+Research says (Doc 19): "Compute VPIN directly from kline taker_buy_volume.
+BVC is unnecessary. Real baseline is 0.117. N=30 buckets."
+→ Implement EXACTLY this. Don't web-search for alternative VPIN methods.
+```
+
 ### 3.1 Feature Extraction
 
 Follow `references/feature-engineering.md` lifecycle:
@@ -297,6 +521,23 @@ for fold in walk_forward_splits:
 - Feature construction module with temporal safety
 - `.planning/strategy/FEATURE_REPORT.md` — IC analysis, regime stability, ablation results
 - Feature selection rationale with multiple testing correction
+
+**Mandatory visualizations:**
+
+1. **Feature pipeline diagram** — Mermaid `flowchart LR` in FEATURE_REPORT.md showing raw data → feature computation → normalization → selection → model input. Color-code temporal safety at each step. Reference `references/visualization-patterns.md`.
+
+```mermaid
+flowchart LR
+    Raw["Raw OHLCV"] --> Shift["shift(1)"] --> Roll["Rolling Compute"] --> Norm["Expanding Norm"] --> Select["Feature Selection"] --> Model["Model Input"]
+    style Shift fill:#4caf50,color:#fff
+    style Norm fill:#4caf50,color:#fff
+```
+
+2. **Feature analysis plots** — Python scripts to `.planning/strategy/plots/`:
+   - `p3-ic-distribution.py` — IC histogram per feature
+   - `p3-ic-decay.py` — IC at lag 1,2,5,10,20 per feature
+   - `p3-regime-stability.py` — IC by market regime heatmap
+   - `p3-feature-importance.py` — Walk-forward ablation bar chart
 
 ### Gate: FEATURE_AUDIT
 
@@ -389,6 +630,30 @@ BASELINES = {
 - Metric calculation module (correct formulas)
 - Baseline model implementations
 - `.planning/strategy/VALIDATION_FRAMEWORK.md` — split design, metrics, baselines
+
+**Mandatory visualizations:**
+
+1. **Walk-forward split schema** — Mermaid diagram in VALIDATION_FRAMEWORK.md:
+
+```mermaid
+gantt
+    title Walk-Forward Splits with Purge + Embargo
+    dateFormat YYYY-MM-DD
+    section Fold 1
+    Train     :t1, 2023-01-01, 180d
+    Purge     :crit, p1, after t1, 5d
+    Embargo   :active, e1, after p1, 5d
+    Test      :v1, after e1, 60d
+    section Fold 2
+    Train     :t2, 2023-04-01, 180d
+    Purge     :crit, p2, after t2, 5d
+    Embargo   :active, e2, after p2, 5d
+    Test      :v2, after e2, 60d
+```
+
+2. **Validation plot scripts** to `.planning/strategy/plots/`:
+   - `p4-split-timeline.py` — Visual timeline of all walk-forward folds
+   - `p4-baseline-comparison.py` — Strategy vs baseline performance bars
 
 ### Gate: VALIDATION_AUDIT
 
@@ -598,35 +863,186 @@ ruin_prob = np.mean([
 - `.planning/strategy/EVALUATION_REPORT.md` — full metrics, regime analysis, cost sensitivity
 - `.planning/strategy/MONTE_CARLO.md` — bootstrap CIs, ruin probability, drawdown distribution
 
-### Gate: FULL_AUDIT
+**Mandatory visualizations — the standard evaluation dashboard:**
 
+Generate Python plot scripts to `.planning/strategy/plots/`:
+
+1. `p6-equity-curve.py` — Cumulative returns with drawdown shading
+2. `p6-rolling-sharpe.py` — Rolling 252-day Sharpe with confidence bands
+3. `p6-regime-performance.py` — Sharpe/DD heatmap by market regime
+4. `p6-cost-sensitivity.py` — Net Sharpe vs cost multiplier curve
+5. `p6-returns-distribution.py` — Daily returns histogram with normal overlay
+6. `p6-monte-carlo.py` — Bootstrap Sharpe distribution with CI bars
+
+Also generate a Mermaid summary in EVALUATION_REPORT.md:
+
+```mermaid
+graph LR
+    subgraph Metrics["Key Metrics"]
+        S["Sharpe: {N}"]
+        DD["Max DD: {N}%"]
+        HR["Hit Rate: {N}%"]
+    end
+    subgraph Risk["Risk Assessment"]
+        R1["Regime Risk: {LOW/MED/HIGH}"]
+        R2["Cost Buffer: {N}x"]
+        R3["Capacity: ${N}M"]
+    end
+```
+
+### Gate: FULL_AUDIT (Team-Based Parallel)
+
+Split the comprehensive audit into 5 parallel category audits, then aggregate scores.
+
+**Create audit team:**
+```
+TeamCreate(team_name="nr-audit-full", description="Full strategy audit — 5 parallel category auditors")
+```
+
+**Create audit tasks:**
+```
+TaskCreate(subject="Audit: Data Infrastructure",
+  description="Audit all data loading code. Check: temporal boundaries, no backfill, publication delays documented, forward fill limits, survivorship bias. Write to .planning/audit/AUDIT-FULL-DATA.md.",
+  activeForm="Auditing data infrastructure")
+
+TaskCreate(subject="Audit: Feature Engineering",
+  description="Audit all feature construction code. Check: shift-before-roll, expanding normalization, walk-forward IC, multiple testing correction. Write to .planning/audit/AUDIT-FULL-FEATURES.md.",
+  activeForm="Auditing feature engineering")
+
+TaskCreate(subject="Audit: Validation Framework",
+  description="Audit validation infrastructure. Check: temporal splits, purging + embargo, correct Sharpe/Sortino/Calmar formulas, baseline comparison with significance. Write to .planning/audit/AUDIT-FULL-VALIDATION.md.",
+  activeForm="Auditing validation framework")
+
+TaskCreate(subject="Audit: Model Training",
+  description="Audit model training pipeline. Check: no shuffle, nested CV for HPO, gradient clipping, early stopping, reproducibility (seeds logged). Write to .planning/audit/AUDIT-FULL-MODEL.md.",
+  activeForm="Auditing model training")
+
+TaskCreate(subject="Audit: Evaluation & Integration",
+  description="Audit evaluation suite and cross-phase integration. Check: full metric suite, regime decomposition, cost sensitivity, Monte Carlo analysis. Verify all earlier audit reports exist. Write to .planning/audit/AUDIT-FULL-EVALUATION.md.",
+  activeForm="Auditing evaluation suite")
+```
+
+**Spawn 5 verifiers (ONE turn for concurrency):**
+```
+Agent(team_name="nr-audit-full", name="auditor-data", subagent_type="nr-verifier",
+  prompt="You are a team member on nr-audit-full. Check TaskList, claim 'Audit: Data Infrastructure'.
+
+  Load references/quant-code-patterns.md for correct/incorrect patterns.
+
+  Audit ALL data loading code. Check:
+  1. Every data load function has temporal boundary parameter
+  2. No backfill operations anywhere
+  3. Publication delays documented for every data source
+  4. Forward fill has explicit limits
+  5. Survivorship bias addressed
+
+  Scoring: CRITICAL (lookahead, backfill): -20 from 100. WARNING (missing docs, unlimited ffill): -5.
+  Write audit: .planning/audit/AUDIT-FULL-DATA.md
+  Return: category_score (0-100), CRITICAL count, WARNING count.
+  Mark task completed when done.")
+
+Agent(team_name="nr-audit-full", name="auditor-features", subagent_type="nr-verifier",
+  prompt="You are a team member on nr-audit-full. Check TaskList, claim 'Audit: Feature Engineering'.
+
+  Load references/quant-code-patterns.md and references/feature-engineering.md.
+
+  Audit ALL feature construction code. Check:
+  1. ALL rolling computations use shift-before-roll
+  2. No full-sample normalization (expanding window only)
+  3. IC evaluation is walk-forward, not single split
+  4. Multiple testing correction applied if 10+ features tested
+  5. Feature ablation uses walk-forward
+
+  Scoring: CRITICAL (wrong shift/roll order, full-sample norm): -20. WARNING (missing ablation): -10.
+  Write audit: .planning/audit/AUDIT-FULL-FEATURES.md
+  Return: category_score (0-100), CRITICAL count, WARNING count.
+  Mark task completed when done.")
+
+Agent(team_name="nr-audit-full", name="auditor-validation", subagent_type="nr-verifier",
+  prompt="You are a team member on nr-audit-full. Check TaskList, claim 'Audit: Validation Framework'.
+
+  Load references/strategy-metrics.md for correct metric formulas.
+
+  Audit validation framework. Check:
+  1. Splits are temporal (no random shuffling)
+  2. Purging and embargo implemented correctly
+  3. Sharpe uses Newey-West adjustment
+  4. Max drawdown on equity curve, not returns
+  5. Baseline models implemented and comparison is statistical (p < 0.05)
+
+  Scoring: CRITICAL (shuffled splits, wrong Sharpe formula): -25. WARNING (missing embargo, no stat test): -10.
+  Write audit: .planning/audit/AUDIT-FULL-VALIDATION.md
+  Return: category_score (0-100), CRITICAL count, WARNING count.
+  Mark task completed when done.")
+
+Agent(team_name="nr-audit-full", name="auditor-model", subagent_type="nr-verifier",
+  prompt="You are a team member on nr-audit-full. Check TaskList, claim 'Audit: Model Training'.
+
+  Load references/ml-training.md and references/quant-code-patterns.md.
+
+  Audit model training pipeline. Check:
+  1. shuffle=False in all data loaders and splits
+  2. Nested CV for hyperparameter optimization (inner loop for HPO, outer for eval)
+  3. Gradient clipping in neural models
+  4. Early stopping on validation loss with patience
+  5. All random seeds set and hyperparameters logged
+
+  Scoring: CRITICAL (shuffle=True, non-nested HPO): -20. WARNING (no gradient clipping, no seed logging): -5.
+  Write audit: .planning/audit/AUDIT-FULL-MODEL.md
+  Return: category_score (0-100), CRITICAL count, WARNING count.
+  Mark task completed when done.")
+
+Agent(team_name="nr-audit-full", name="auditor-evaluation", subagent_type="nr-verifier",
+  prompt="You are a team member on nr-audit-full. Check TaskList, claim 'Audit: Evaluation & Integration'.
+
+  Load references/strategy-metrics.md.
+
+  Audit evaluation suite and cross-phase integration. Check:
+  1. Full metric suite (Sharpe, Sortino, Calmar, max DD, hit rate, profit factor)
+  2. Regime decomposition (bull, bear, sideways, high vol, low vol)
+  3. Transaction cost sensitivity analysis
+  4. Monte Carlo / bootstrap confidence intervals
+  5. All earlier audit reports exist in .planning/audit/
+
+  Scoring: CRITICAL (missing core metrics, no regime analysis): -20. WARNING (missing Monte Carlo, incomplete cost sensitivity): -5.
+  Write audit: .planning/audit/AUDIT-FULL-EVALUATION.md
+  Return: category_score (0-100), CRITICAL count, WARNING count.
+  Mark task completed when done.")
+```
+
+**Aggregate scores and cleanup:**
+```
+# Leader collects all 5 category scores from TaskList
+# Overall score = MINIMUM of 5 category scores (weakest link determines overall)
+# Total CRITICALs = sum across all 5 categories
+# Total WARNINGs = sum across all 5 categories
+
+# Gate verdict:
+#   PASS if overall_score >= 90 AND total_criticals == 0
+#   FAIL otherwise
+
+# Write aggregated summary to .planning/audit/AUDIT-FULL-STRATEGY.md:
+#   - Per-category scores table
+#   - Overall score (minimum)
+#   - All violations merged and sorted by severity
+#   - PASS/FAIL verdict
+
+SendMessage(type="shutdown_request", recipient="auditor-data")
+SendMessage(type="shutdown_request", recipient="auditor-features")
+SendMessage(type="shutdown_request", recipient="auditor-validation")
+SendMessage(type="shutdown_request", recipient="auditor-model")
+SendMessage(type="shutdown_request", recipient="auditor-evaluation")
+TeamDelete()
+```
+
+**Sequential fallback:** If TeamCreate is unavailable or team spawning fails, use a single verifier `Task()` call:
 ```
 Task(
   subagent_type="nr-verifier",
   description="Full strategy audit on complete codebase",
   prompt="Run FULL_AUDIT on the complete strategy codebase.
-
-  This is the comprehensive final audit before production.
-  Load ALL references: quant-code-patterns.md, strategy-metrics.md, feature-engineering.md, ml-training.md.
-
-  Check ALL of the following:
-  1. Data: temporal boundaries, no backfill, publication delays documented
-  2. Features: shift-before-roll, expanding normalization, walk-forward IC
-  3. Validation: temporal splits, purging + embargo, correct metric formulas
-  4. Model: no shuffle, nested CV for HPO, baseline beaten with significance
-  5. Evaluation: full metric suite, regime decomposition, cost sensitivity
-
-  Also verify:
-  - No CRITICAL violations remain from any earlier audit
-  - All earlier audit reports exist in .planning/audit/
-
-  Scoring:
-  - Each CRITICAL violation: -20 points from 100
-  - Each WARNING: -5 points
-  - Must score >= 90 to pass
-
-  Write audit: .planning/audit/AUDIT-FULL-STRATEGY.md
-  Return: PASS/FAIL with score and violation summary"
+  Load ALL references. Check: data, features, validation, model, evaluation.
+  Scoring: CRITICAL -20, WARNING -5, must score >= 90. Write to .planning/audit/AUDIT-FULL-STRATEGY.md"
 )
 ```
 

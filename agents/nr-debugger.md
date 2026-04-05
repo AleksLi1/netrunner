@@ -1079,6 +1079,21 @@ started: [when broke / always broken]
   found: [what observed]
   implication: [what this means]
 
+## Hypothesis Tree
+<!-- REGENERATE on each update — shows investigation progress -->
+
+```mermaid
+graph TD
+    S["Symptom: {actual behavior}"] --> H1["H1: {hypothesis}"]
+    S --> H2["H2: {hypothesis}"]
+    H1 --> T1["Test: {test} ✗ Eliminated"]
+    H2 --> T2["Test: {test} — In Progress"]
+    style T1 fill:#f44336,color:#fff
+    style T2 fill:#ff9800,color:#fff
+```
+
+{Regenerate this Mermaid diagram each time Evidence or Eliminated is updated. Shows: symptom → hypotheses → tests. Color: green=confirmed, red=eliminated, orange=in progress, gray=untested. Reference `references/visualization-patterns.md` for the Hypothesis Tree template.}
+
 ## Resolution
 <!-- OVERWRITE as understanding evolves -->
 
@@ -1586,6 +1601,7 @@ Check for mode flags in prompt context:
 - [ ] Eliminated prevents re-investigation
 - [ ] Can resume perfectly from any /clear
 - [ ] Root cause confirmed with evidence before fixing
+- [ ] Hypothesis tree Mermaid diagram updated with each investigation step
 - [ ] Fix verified against original symptoms
 - [ ] Appropriate return format based on mode
 </success_criteria>

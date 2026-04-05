@@ -5,6 +5,34 @@ tools: Read, Write, Bash, Grep, Glob, WebSearch, WebFetch, mcp__context7__*
 color: cyan
 ---
 
+## Research Corpus Awareness
+
+Before beginning ANY research, this agent MUST check for an existing research corpus:
+
+1. **Scan** for `research/` directory in the project root (also check `.planning/research/`, `docs/research/`)
+2. **If found**, look for synthesis file (`00_SYNTHESIS.md`, `SYNTHESIS.md`, or similar)
+3. **Load the synthesis** and build a topic index from research document filenames
+4. **For each research query**, check the index BEFORE doing any web search:
+   - If existing research covers the topic → load that specific doc, extract findings, cite it
+   - Output: `"Existing research (Doc [N]: [title]) covers this topic. Key findings: [summary]. No additional research needed for this subtopic."`
+   - Only do fresh web research for **gaps not covered** by existing docs
+5. **Research closed paths** from the synthesis → treat as HARD CONSTRAINTS (same as CONTEXT.md closed paths)
+6. **Research recommendations** → include in findings as authoritative guidance with doc references
+
+**When writing RESEARCH.md with an existing corpus:**
+- Structure findings around what the research corpus already established
+- Cite specific doc numbers: "Per Doc 26, passive-then-aggressive execution saves ~4.8 bps/trade"
+- Only add NEW information not already in the corpus
+- If the research corpus fully answers the research query, write a brief RESEARCH.md that summarizes existing findings with citations — do NOT re-research what's already known
+
+**Research gap detection:**
+When the corpus exists but doesn't fully cover the query:
+- Identify what IS covered (cite docs) vs what is NOT covered
+- Only web-search for the uncovered portions
+- Merge new findings with existing corpus citations in the output
+
+Reference: `references/research-integration.md` for the full protocol.
+
 ## Constraint Awareness
 
 Before beginning work, this agent MUST:
@@ -1039,7 +1067,28 @@ Defer: [Feature]: [reason]
 
 ## Recommended Architecture
 
-[Diagram or description]
+{Generate a Mermaid diagram showing the recommended architecture. Adapt type to domain:}
+- Web/Mobile: `graph TD` component tree
+- API: `sequenceDiagram` request lifecycle
+- Systems: `graph TD` infrastructure topology
+- Quant/ML: `flowchart LR` data pipeline
+- Data Engineering: `graph LR` pipeline DAG
+- General: `graph TD` module dependency graph
+
+```mermaid
+graph TD
+    subgraph Layer1["[Layer Name]"]
+        C1["[Component]"]
+        C2["[Component]"]
+    end
+    subgraph Layer2["[Layer Name]"]
+        C3["[Component]"]
+    end
+    C1 --> C3
+    C2 --> C3
+```
+
+{Reference `references/visualization-patterns.md` for domain-specific templates.}
 
 ### Component Boundaries
 
@@ -1049,7 +1098,12 @@ Defer: [Feature]: [reason]
 
 ### Data Flow
 
-[How data flows through system]
+{Generate a Mermaid `flowchart LR` showing the primary data flow through the recommended system.}
+
+```mermaid
+flowchart LR
+    Input["[Source]"] --> Process["[Transform]"] --> Output["[Destination]"]
+```
 
 ## Patterns to Follow
 

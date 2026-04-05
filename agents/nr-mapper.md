@@ -119,6 +119,8 @@ At each stage, note:
 
 Add to ARCHITECTURE.md as "Feature Pipeline Flow" subsection with the above analysis.
 
+**Generate Mermaid diagram:** Embed a `flowchart LR` in ARCHITECTURE.md showing the feature pipeline flow from raw data to model input. Color-code temporal safety: green (`fill:#4caf50`) = verified safe, orange (`fill:#ff9800`) = requires audit, red (`fill:#f44336`) = contamination detected. Reference `references/visualization-patterns.md` for the Feature Pipeline template.
+
 ### Quant Mapper Anti-Patterns
 
 When mapping a quant codebase, do NOT:
@@ -149,6 +151,7 @@ Load `references/web-reasoning.md` and apply these mapping principles:
 - **Routing structure:** Map all routes, dynamic segments, layouts, and middleware. Note SSR vs CSR per route.
 - **Data fetching pattern:** Where does data loading happen? Server components, getServerSideProps, useEffect, React Query? Is it consistent?
 - **State management boundaries:** What state is global vs local vs server? Are there clear boundaries?
+- **Generate Mermaid diagram:** Embed a `graph TD` component tree in ARCHITECTURE.md showing layout root → feature components. Reference `references/visualization-patterns.md` for the Component Tree template.
 
 **For `quality` focus — add to CONVENTIONS.md and TESTING.md:**
 - Component testing patterns (unit, integration, visual regression)
@@ -182,6 +185,7 @@ Load `references/api-reasoning.md` and apply these mapping principles:
 **For `arch` focus — add to ARCHITECTURE.md and STRUCTURE.md:**
 - **Request lifecycle:** Map the complete request path from ingress through middleware, routing, handler, service layer, database, and response.
 - **Auth/authz boundaries:** Where is authentication checked? Where is authorization enforced? Are there gaps?
+- **Generate Mermaid diagram:** Embed a `sequenceDiagram` in ARCHITECTURE.md showing the request lifecycle: Client → Middleware → Router → Handler → Service → DB → Response. Reference `references/visualization-patterns.md`.
 - **Database access patterns:** Are queries through ORM, raw SQL, or both? N+1 risk areas?
 - **Service boundaries:** If microservices, map inter-service communication (REST, gRPC, events).
 
@@ -330,6 +334,7 @@ Load `references/data-engineering-reasoning.md` and apply these mapping principl
 - **Data flow:** Map data from sources through transformations to consumers. Note schema at each boundary.
 - **Partition strategy:** Map how data is partitioned in storage and how queries prune partitions.
 - **Consumer integration:** Map downstream consumers (dashboards, ML models, APIs) and their freshness requirements.
+- **Generate Mermaid diagram:** Embed a `graph LR` Pipeline DAG in ARCHITECTURE.md showing sources → transforms → quality gates → sinks. Reference `references/visualization-patterns.md` for the Data Pipeline DAG template.
 
 **For `concerns` focus — add PIPELINE HEALTH ASSESSMENT to CONCERNS.md:**
 - Idempotency gaps (append-only writes, missing dedup, non-deterministic transforms)
@@ -338,6 +343,91 @@ Load `references/data-engineering-reasoning.md` and apply these mapping principl
 - Operational risks (no alerting, manual recovery procedures, missing backfill strategy)
 
 - Pipeline-related mapping → also load `references/data-engineering-pipelines.md`
+
+## NTP Import Targeted Mapping Mode
+
+**Activated when:** Prompt contains `NTP IMPORT mode` or `targeted NTP mapping`.
+
+This is a specialized, fast mapping mode for NTP transfer imports. Instead of full codebase exploration, it performs targeted searches using DISCOVERY hints from an NTP packet to find integration points.
+
+**Input:** The prompt will contain DISCOVERY hints:
+- `CONCEPTS: {space-separated keywords}` — domain concepts the transfer touches
+- `TOUCHES: {space-separated keywords}` — integration point keywords
+- `PATTERNS: {space-separated keywords}` — code patterns to search for
+
+**Process:**
+
+1. **Pattern search** — For each pattern in PATTERNS, grep the codebase:
+   ```
+   Grep(pattern="{pattern}", output_mode="files_with_matches")
+   ```
+   Read the top hits to understand existing integration points.
+
+2. **Concept search** — For each concept in CONCEPTS, grep:
+   ```
+   Grep(pattern="{concept}", output_mode="files_with_matches")
+   ```
+   Identifies related code that may need awareness of the new findings.
+
+3. **Touch point search** — For each keyword in TOUCHES, grep:
+   ```
+   Grep(pattern="{touch_point}", output_mode="files_with_matches")
+   ```
+   Identifies where new code plugs in (registries, configs, pipelines).
+
+4. **Read key files** — Read the top-matched files from steps 1-3 to understand:
+   - How existing similar code is structured (patterns to follow)
+   - Where registrations/configurations happen
+   - What naming conventions are used
+   - What testing patterns exist for this type of code
+
+5. **Write NTP-MAPPING.md** to `.planning/codebase/`:
+
+```markdown
+# NTP Integration Mapping
+
+**Analysis Date:** [YYYY-MM-DD]
+**Source packet:** [packet reference from prompt]
+
+## Integration Points Found
+
+**Pattern matches:**
+- `{file}`: {what was found, why it's relevant}
+
+**Concept matches:**
+- `{file}`: {what was found, why it's relevant}
+
+**Touch point matches:**
+- `{file}`: {registration/config/pipeline point}
+
+## Recommended Integration Strategy
+
+**For each finding type:**
+- **New code location:** `{path}` (following existing patterns in `{example file}`)
+- **Registration point:** `{file}:{line}` (where to register/configure)
+- **Test location:** `{path}` (following existing test patterns)
+- **Naming convention:** {convention observed in existing code}
+
+## Existing Patterns to Follow
+
+**Code structure:**
+```{lang}
+{representative example from existing codebase}
+```
+
+**Test structure:**
+```{lang}
+{representative test example}
+```
+
+## Dependency Status
+
+| Dependency | Status | Action needed |
+|-----------|--------|---------------|
+| {dep} | present/missing | none/install |
+```
+
+**Key difference from standard mapping:** NTP mapping is FAST and TARGETED. Do not explore the entire codebase — only follow the DISCOVERY hints. The goal is a focused integration guide, not a comprehensive analysis.
 
 
 ## Brain Context Feeding
@@ -1098,12 +1188,36 @@ Ready for orchestrator summary.
 
 </critical_rules>
 
+<visualization_protocol>
+## Proactive Visualization Generation
+
+**Every `arch` focus mapping MUST include at least one Mermaid diagram** in ARCHITECTURE.md showing the system's structural overview. Adapt the diagram type to the domain:
+
+| Domain | Diagram type | What to show |
+|--------|-------------|-------------|
+| Web | `graph TD` | Component tree from layout root to feature leaves |
+| API | `sequenceDiagram` | Request lifecycle through middleware → handler → service → DB |
+| Systems | `graph TD` | Infrastructure topology — services, databases, queues, external APIs |
+| Quant/ML | `flowchart LR` | Feature pipeline from raw data to model input (color-coded temporal safety) |
+| Data Engineering | `graph LR` | Pipeline DAG — sources → transforms → quality gates → sinks |
+| Mobile | `graph TD` | Navigation graph — screens, transitions, deep link entry points |
+| Desktop | `graph TD` | Process model — main process, renderer processes, IPC channels |
+| General | `graph TD` | Module dependency graph — top-level packages and their relationships |
+
+**For `concerns` focus:** Include a Mermaid `graph TD` showing the highest-severity concerns and their relationship to affected components. Color-code by severity.
+
+**For `tech` focus:** Include a Mermaid `graph LR` showing the technology stack layers (runtime → framework → libraries → tools).
+
+Reference: `references/visualization-patterns.md` for templates and conventions.
+</visualization_protocol>
+
 <success_criteria>
 - [ ] Focus area parsed correctly
 - [ ] Codebase explored thoroughly for focus area
 - [ ] All documents for focus area written to `.planning/codebase/`
 - [ ] Documents follow template structure
 - [ ] File paths included throughout documents
+- [ ] At least one Mermaid diagram generated in output documents
 - [ ] Confirmation returned (not document contents)
 </success_criteria>
 

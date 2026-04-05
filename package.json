@@ -5,9 +5,13 @@
   "keywords": ["claude", "claude-code", "ai", "autonomous", "project-management", "diagnostic", "expert-system"],
   "author": "Netrunner",
   "license": "MIT",
+  "homepage": "https://github.com/netrunner-cc/netrunner",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yourusername/netrunner"
+    "url": "https://github.com/netrunner-cc/netrunner.git"
+  },
+  "bugs": {
+    "url": "https://github.com/netrunner-cc/netrunner/issues"
   },
   "bin": {
     "nr-tools": "./bin/nr-tools.cjs"
@@ -20,6 +24,7 @@
     "templates/",
     "references/",
     "examples/",
+    "scripts/",
     "install.sh",
     "install.ps1",
     "VERSION"

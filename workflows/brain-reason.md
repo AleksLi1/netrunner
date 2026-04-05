@@ -13,6 +13,20 @@ This workflow executes the brain reasoning protocol at any decision point.
 Read `.planning/CONTEXT.md` using `nr-tools.cjs brain load`
 If no CONTEXT.md exists, note this and proceed with limited context.
 
+### Step 1b: Load Research Corpus (if exists)
+Check for research directory: `research/`, `.planning/research/`, `docs/research/`
+If found with synthesis file (`00_SYNTHESIS.md` or similar):
+1. **Load synthesis fully** — this is the senior researcher's complete analysis
+2. **Extract and integrate:**
+   - Research closed paths → merge into closed path set (Step 5)
+   - Research key numbers → available as reference data for all reasoning
+   - Research tier rankings → inform phase priority assessments
+   - Research critical constraints → merge into hard constraints (Step 5)
+3. **Build topic index** from research doc filenames for on-demand loading
+4. **Set `RESEARCH_CORPUS = true`** — all downstream steps are research-aware
+
+When research corpus exists, the brain's reasoning quality improves dramatically because it reasons from **completed expert analysis** rather than from scratch.
+
 ### Step 2: Load Phase History
 For each completed phase (from .planning/phases/):
 - Read SUMMARY.md (what was built)
@@ -47,6 +61,7 @@ WORKFLOW_MODES:
 - DEBUG — .planning/ exists, user describes a bug/fix
 - EXPLICIT — .planning/ exists, user says "phase N" explicitly
 - QUICK_TASK — .planning/ exists, user describes bounded single task
+- AUTO_RESEARCH — Any state, user requests autonomous experiment loop
 ```
 
 **Detection logic:**
@@ -81,10 +96,23 @@ Extract from CONTEXT.md:
 - Prior decisions (for consistency)
 - Active hypothesis (for alignment)
 
+**If RESEARCH_CORPUS = true**, also extract from synthesis:
+- Research closed paths → merge into closed paths (same severity)
+- Research critical constraints → merge into hard constraints
+- Research quality labels (HONEST, UPPER_BOUND, UNVALIDATED, TAINTED) → inform confidence levels
+- Research "Key Numbers" → available as baseline references in all reasoning
+
 ### Step 6: Reason
 Produce explicit reasoning following the format:
 "Given [constraints], [prior outcomes], [current state], [hypothesis],
 the best approach is [X] because [causal reasoning]."
+
+**If RESEARCH_CORPUS = true**, reasoning MUST:
+- Reference specific research docs when making claims: "Per Doc [N], [finding]"
+- Use research-predicted impacts when estimating outcomes: "Research predicts [X] (UNVALIDATED)"
+- Check if the proposed approach aligns with research recommendations
+- If diverging from research, explicitly justify: "Research recommends [X] but [Y] because [reason]"
+- Never ignore research findings — they represent completed expert analysis
 
 ### Step 7: Generate Constraint Frame
 Output a constraint frame for downstream agents:
@@ -136,6 +164,29 @@ Update CONTEXT.md with the decision and reasoning:
 - Recalculate confidence levels across all active hypotheses
 - Check if any previously closed paths should be reopened given new evidence
 
+### trigger: accept
+- Focus on acceptance test reasoning — does the built product work for the user?
+- Load `.planning/STORIES.md` for user stories and acceptance criteria
+- Evaluate which stories are testable given the current phase
+- Reason about test strategy: which domain? which test runner? what setup?
+- When acceptance tests fail:
+  - Classify failure type: MISSING_ELEMENT, WRONG_BEHAVIOR, SETUP_FAILURE, TIMING_ISSUE, TEST_ISSUE
+  - Reason about root cause: is this a code issue, a test issue, or an environment issue?
+  - Determine fix strategy: spawn executor for code fix, regenerate test, or fix environment
+  - Track heal attempts: after 3 failures on same story, escalate — don't loop forever
+- When all stories pass: reason about goal coverage — does the sum of stories cover the user's full goal?
+- If goal has uncovered aspects: recommend generating additional stories
+- Key question at every step: "If I were the user, could I actually use this to achieve my goal?"
+
+### trigger: goal_validate
+- Focus on final goal validation before marking project complete
+- Re-read the user's original goal from STORIES.md or PROJECT.md
+- Map each aspect of the goal to user stories
+- Check for uncovered aspects — parts of the goal with no corresponding story
+- Run full regression: do previously-passing stories still pass after all phases?
+- Reason about completeness: "Would a user pick this up and successfully achieve what they asked for?"
+- If gaps found: determine whether to add stories/phases or flag for user
+
 ### trigger: query
 - Focus on answering the user's specific question
 - Load relevant context sections (not everything)
@@ -144,6 +195,30 @@ Update CONTEXT.md with the decision and reasoning:
 - Record the question and answer in Update Log if it changes understanding
 - If the query reveals a gap in the brain's context model, note it for the next phase
 - Never give generic answers — every response must reference THIS project's state
+
+### trigger: experiment
+- Focus on proposing the next modification in an auto-research experiment loop
+- Load experiment journal (`.planning/auto-research/JOURNAL.md`) — last 10 entries
+- Load research directive (`.planning/auto-research/DIRECTIVE.md`) for goal and scope
+- Read current state of mutable file(s) to understand what can be changed
+- **Proposal strategy:**
+  1. Group past experiments by CATEGORY — detect exhausted clusters (3+ failures, 0 successes)
+  2. Rank unexplored categories by expected information gain
+  3. Within chosen category, propose a specific modification with one-line hypothesis
+  4. After 5+ improvements found, propose COMBINATION experiments (merge 2-3 successful mods)
+- **Pre-generation gates (experiment-specific):**
+  1. Does this repeat an already-tried experiment? → DISCARD
+  2. Does this modify files outside MUTABLE scope? → DISCARD
+  3. Does this violate a domain constraint (e.g., lookahead in quant)? → DISCARD
+  4. Is this the same category as the last N consecutive failures? → DEPRIORITIZE
+- **Output format:**
+  ```
+  EXPERIMENT: [short name]
+  HYPOTHESIS: [one sentence — why this should improve the metric]
+  MODIFICATION: [specific change description]
+  CATEGORY: [hyperparameter|architecture|data|optimization|regularization|combination|other]
+  ```
+- Record each proposal in the Decision Log for audit trail
 
 ---
 

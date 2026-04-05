@@ -44,11 +44,22 @@ console.log('Installing Netrunner...');
 
 // 1. Commands -> ~/.claude/commands/
 ensureDir(path.join(COMMANDS_DIR, 'nr'));
+
+// Clean stale command files — only keep files that exist in source commands/nr/
+const installedNrDir = path.join(COMMANDS_DIR, 'nr');
+const sourceNrDir = path.join(PKG_DIR, 'commands', 'nr');
+const sourceFiles = new Set(fs.existsSync(sourceNrDir) ? fs.readdirSync(sourceNrDir) : []);
+for (const file of fs.readdirSync(installedNrDir)) {
+  if (file.endsWith('.md') && !sourceFiles.has(file)) {
+    fs.unlinkSync(path.join(installedNrDir, file));
+    console.log(`  Cleaned stale command: nr/${file}`);
+  }
+}
+
 copyFile(path.join(PKG_DIR, 'commands', 'nr.md'), path.join(COMMANDS_DIR, 'nr.md'));
-const nrCommandsDir = path.join(PKG_DIR, 'commands', 'nr');
-if (fs.existsSync(nrCommandsDir)) {
-  for (const file of fs.readdirSync(nrCommandsDir)) {
-    copyFile(path.join(nrCommandsDir, file), path.join(COMMANDS_DIR, 'nr', file));
+if (fs.existsSync(sourceNrDir)) {
+  for (const file of fs.readdirSync(sourceNrDir)) {
+    copyFile(path.join(sourceNrDir, file), path.join(COMMANDS_DIR, 'nr', file));
   }
 }
 
@@ -81,17 +92,10 @@ console.log('');
 console.log('Netrunner installed successfully!');
 console.log('');
 console.log('Commands:');
-console.log('  /nr <query>        — Diagnostic Q&A with full context');
-console.log('  /nr:scope <intent> — Generate full project plan');
-console.log('  /nr:run            — Brain-driven autonomous execution');
-console.log('  /nr:plan <N>       — Plan a specific phase');
-console.log('  /nr:execute <N>    — Execute a planned phase');
-console.log('  /nr:verify <N>     — Verify phase results');
-console.log('  /nr:progress       — Project assessment');
-console.log('  /nr:do <text>      — Route freeform intent');
-console.log('  /nr:debug          — Diagnostic debugging');
-console.log('  /nr:resume         — Restore session state');
-console.log('  /nr:map-codebase   — Analyze existing codebase');
-console.log('  /nr:update         — Self-update');
+console.log('  /nr <query>   — Diagnostic Q&A with full context');
+console.log('  /nr:run       — Brain-driven autonomous execution (chain reaction engine)');
+console.log('  /nr:update    — Self-update');
 console.log('');
-console.log('Get started: /nr:scope "describe your project"');
+console.log('Extended session: /nr:run overnight | /nr:run for 3 hours');
+console.log('');
+console.log('Get started: /nr:run "describe your project"');

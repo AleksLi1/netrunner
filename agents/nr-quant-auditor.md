@@ -411,6 +411,35 @@ Write to `.planning/audit/AUDIT-{MODE}-{YYYYMMDD-HHMMSS}.md`:
 ## Metric Implementation Assessment
 {Verdict: CLEAN | HAS_ISSUES | CANNOT_VERIFY. Formulas checked vs strategy-metrics.md.}
 
+## Contamination Map
+
+{Generate a Mermaid diagram showing violation propagation — which files contain violations and how they flow to downstream consumers. Color by severity.}
+
+```mermaid
+graph TD
+    subgraph Critical["CRITICAL Violations"]
+        V1["features.py:42 — rolling w/o shift"]
+        V2["pipeline.py:88 — no purge gap"]
+    end
+    subgraph Warning["WARNING Violations"]
+        V3["model.py:15 — global scaler"]
+    end
+    V1 -->|"feeds"| V3
+    V2 -->|"contaminates"| M["model training"]
+    V3 -->|"leaks into"| M
+    style Critical fill:#f44336,color:#fff
+    style Warning fill:#ff9800,color:#fff
+```
+
+```mermaid
+pie title Violation Distribution
+    "CRITICAL" : {critical_count}
+    "WARNING" : {warning_count}
+    "INFO" : {info_count}
+```
+
+{Reference `references/visualization-patterns.md` for Contamination Map template.}
+
 ## Recommendations (priority order)
 1. **CRITICAL** — {File:Line}: {fix}
 2. **WARNING** — {File:Line}: {fix}
@@ -520,6 +549,7 @@ When previous audit exists: load it, skip unchanged files (`git diff`), carry fo
 - [ ] Severity classification completed — every violation has final severity
 - [ ] NR-SAFE exemptions processed and recorded
 - [ ] Temporal Safety Score computed correctly
+- [ ] Contamination map Mermaid diagram generated in report
 - [ ] Report written to `.planning/audit/AUDIT-{MODE}-{timestamp}.md`
 - [ ] Audit history updated in `.planning/audit/audit-history.json`
 - [ ] CONTEXT.md updated with audit evidence (if brain integration available)

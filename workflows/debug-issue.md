@@ -68,52 +68,128 @@ DEBUG CONTEXT:
 - Phase context: [which phase's work is affected]
 ```
 
-## 4. Spawn Debugger Agent
+## 4. Generate Hypotheses
+
+Brain generates 2-3 hypotheses inline based on the issue classification and prior context:
+
+```
+HYPOTHESES:
+Based on issue type [TYPE], severity [SEV], and prior context:
+
+H1: [Most likely hypothesis] — confidence: [HIGH/MEDIUM/LOW]
+    Test: [what would confirm/rule out]
+
+H2: [Alternative hypothesis] — confidence: [HIGH/MEDIUM/LOW]
+    Test: [what would confirm/rule out]
+
+H3: [Long-shot hypothesis, if warranted] — confidence: [LOW]
+    Test: [what would confirm/rule out]
+```
+
+Rank hypotheses by confidence. If only 1 hypothesis has HIGH confidence, skip team dispatch and go directly to single debugger (step 5 fallback).
+
+## 5. Investigate via Team (Parallel Hypothesis Testing)
+
+**Single hypothesis** (or team unavailable): Use single `Task()` call — no team overhead:
 
 ```
 Task(
   subagent_type="nr-debugger",
-  description="Debug: [issue summary]",
-  prompt="Investigate this issue using systematic scientific method.
-
-ISSUE DESCRIPTION:
-[User's description]
-
-DEBUG CONTEXT:
-[Context frame from step 3]
-
-INVESTIGATION METHOD:
-1. CLASSIFY -- What type of issue is this? What subsystem?
-2. HYPOTHESIZE -- Based on symptoms + context, what are the top 2-3 hypotheses?
-3. TEST -- For each hypothesis, design a minimal test:
-   - What would confirm this hypothesis?
-   - What would rule it out?
-4. NARROW -- Run tests, eliminate hypotheses
-5. FIX -- Once root cause found:
-   - Implement the fix
-   - Verify the fix resolves the symptom
-   - Verify no regression introduced
-6. DOCUMENT -- Record findings
-
-CONSTRAINTS:
-[Hard constraints from CONTEXT.md -- fixes must not violate these]
-
-PRIOR FAILURES:
-[Related tried approaches -- avoid repeating failed fixes]
-
-RETURN FORMAT:
-Status: ROOT_CAUSE_FOUND | NEEDS_MORE_INFO | CHECKPOINT
-Root cause: [description]
-Fix applied: [yes/no, what was done]
-Hypothesis tested: [list of hypotheses tested with results]
-New constraints: [any constraints discovered]
-Recommendations: [if fix not applied, what to do]"
-)
+  description="Debug: [issue summary] — test H1",
+  prompt="Investigate hypothesis: [H1 description]
+  ... [full investigation method + constraints + return format] ...")
 ```
 
-**Runtime note:** Use Claude Code `Task()` for subagent dispatch. If Task() is unavailable, execute the debugger prompt inline.
+**Multiple hypotheses** (2-3): Create a team with one debugger per hypothesis:
 
-## 5. Process Debugger Results
+### 5.1 Create Debug Team
+
+```
+TeamCreate(team_name="nr-debug-{issue-slug}", description="Parallel hypothesis testing — {N} hypotheses")
+```
+
+### 5.2 Create Tasks per Hypothesis
+
+```
+TaskCreate(subject="Test H1: [hypothesis summary]",
+  description="Investigate hypothesis: [H1 full description]. Test: [confirmation/ruling criteria]. Write findings to .planning/debug/{issue-slug}-H1.md.",
+  activeForm="Testing hypothesis 1")
+
+TaskCreate(subject="Test H2: [hypothesis summary]",
+  description="Investigate hypothesis: [H2 full description]. Test: [confirmation/ruling criteria]. Write findings to .planning/debug/{issue-slug}-H2.md.",
+  activeForm="Testing hypothesis 2")
+
+# (TaskCreate for H3 if it exists)
+```
+
+### 5.3 Spawn Debuggers (ONE turn for concurrency)
+
+```
+Agent(team_name="nr-debug-{issue-slug}", name="debugger-h1", subagent_type="nr-debugger",
+  prompt="You are a team member on nr-debug-{issue-slug}. Check TaskList, claim 'Test H1'.
+
+ISSUE DESCRIPTION: [User's description]
+YOUR HYPOTHESIS: [H1 full description]
+DEBUG CONTEXT: [Context frame from step 3]
+
+INVESTIGATION METHOD:
+1. CLASSIFY — What subsystem is affected?
+2. TEST — Design and run minimal test for THIS hypothesis:
+   - What would confirm it? What would rule it out?
+3. NARROW — Based on test results, assess this hypothesis
+4. FIX — If root cause confirmed: implement fix, verify it, check for regressions
+5. DOCUMENT — Record findings
+
+CONSTRAINTS: [Hard constraints from CONTEXT.md]
+PRIOR FAILURES: [Related tried approaches]
+
+RETURN FORMAT:
+Status: ROOT_CAUSE_FOUND | RULED_OUT | INCONCLUSIVE
+Hypothesis: [H1 description]
+Evidence: [what was tested and found]
+Root cause: [if found]
+Fix applied: [yes/no, what was done]
+Confidence: [HIGH/MEDIUM/LOW]
+New constraints: [any discovered]
+
+Write findings to: .planning/debug/{issue-slug}-H1.md
+Mark task completed when done.")
+
+Agent(team_name="nr-debug-{issue-slug}", name="debugger-h2", subagent_type="nr-debugger",
+  prompt="You are a team member on nr-debug-{issue-slug}. Check TaskList, claim 'Test H2'.
+  [... same structure as H1 but with H2 hypothesis ...]
+  Write findings to: .planning/debug/{issue-slug}-H2.md
+  Mark task completed when done.")
+
+# (Agent for H3 if it exists)
+```
+
+### 5.4 Cleanup
+
+```
+SendMessage(type="shutdown_request", recipient="debugger-h1")
+SendMessage(type="shutdown_request", recipient="debugger-h2")
+# (shutdown H3 if it exists)
+TeamDelete()
+```
+
+**Sequential fallback:** If TeamCreate is unavailable or team spawning fails, test each hypothesis sequentially using individual `Task()` calls with identical prompts.
+
+## 6. Merge Debug Results
+
+Leader collects results from all debuggers via TaskList and applies decision matrix:
+
+| Outcome | Action |
+|---------|--------|
+| Exactly 1 `ROOT_CAUSE_FOUND` | Accept that debugger's fix and findings |
+| Multiple `ROOT_CAUSE_FOUND` | Brain picks highest confidence; if tied, prefer the one with a fix already applied |
+| All `RULED_OUT` | Generate new hypotheses (return to step 4), max 2 rounds |
+| All `INCONCLUSIVE` | Status = `NEEDS_MORE_INFO`, present partial findings to user |
+| Mix of `RULED_OUT` + `INCONCLUSIVE` | Focus on inconclusive hypothesis with targeted re-investigation |
+
+Merge into unified debug report at `.planning/debug/{issue-slug}.md`.
+
+## 7. Process Debug Results
 
 ### On ROOT_CAUSE_FOUND:
 
@@ -152,7 +228,7 @@ Debugger hit a decision point:
 - Wait for user input
 - Re-spawn or continue with answer
 
-## 6. Update Project Knowledge
+## 8. Update Project Knowledge
 
 After debugging (regardless of outcome):
 
