@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// nr-hook-version: 2.1.1
+// nr-hook-version: 2.1.2
 // Check for Netrunner updates in background, write result to cache.
 // Called by SessionStart hook — runs once per session.
 //
