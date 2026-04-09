@@ -25,17 +25,27 @@ CURRENT_VERSION=$(cat "$NR_DIR/VERSION" 2>/dev/null || echo "unknown")
 
 ## Step 2 — Check for Updates
 
-Fetch the latest version from the remote repository:
+Fetch the latest version from the remote repository. Detect the default branch dynamically so this works regardless of whether the repo uses `master` or `main`:
 
 ```bash
 cd "$NR_DIR"
-git fetch origin main --quiet 2>/dev/null
+# Detect the remote default branch (master or main)
+DEFAULT_BRANCH=$(git symbolic-ref refs/remotes/origin/HEAD 2>/dev/null | sed 's@^refs/remotes/origin/@@')
+if [ -z "$DEFAULT_BRANCH" ]; then
+  # Fallback: try master first, then main
+  if git ls-remote --heads origin master 2>/dev/null | grep -q master; then
+    DEFAULT_BRANCH=master
+  else
+    DEFAULT_BRANCH=main
+  fi
+fi
+git fetch origin "$DEFAULT_BRANCH" --quiet 2>/dev/null
 ```
 
 Compare local vs remote:
 ```bash
 LOCAL_HEAD=$(git rev-parse HEAD 2>/dev/null)
-REMOTE_HEAD=$(git rev-parse origin/main 2>/dev/null)
+REMOTE_HEAD=$(git rev-parse origin/"$DEFAULT_BRANCH" 2>/dev/null)
 ```
 
 **If already up to date** (`LOCAL_HEAD` == `REMOTE_HEAD`):
@@ -49,7 +59,7 @@ Exit.
 Get the diff between current and latest:
 ```bash
 cd "$NR_DIR"
-git log --oneline HEAD..origin/main
+git log --oneline HEAD..origin/"$DEFAULT_BRANCH"
 ```
 
 Read both the installed and latest versions of changed files. Produce a human-readable summary:
@@ -89,7 +99,7 @@ Proceed to Step 5.
 
 ```bash
 cd "$NR_DIR"
-git diff HEAD..origin/main
+git diff HEAD..origin/"$DEFAULT_BRANCH"
 ```
 
 Display the diff, then re-ask: "Update now or skip?"
@@ -116,7 +126,7 @@ cp -r "$NR_DIR/VERSION" "$BACKUP_DIR/" 2>/dev/null
 ### Pull latest:
 ```bash
 cd "$NR_DIR"
-git pull origin main
+git pull origin "$DEFAULT_BRANCH"
 ```
 
 ### Install dependencies (if applicable):

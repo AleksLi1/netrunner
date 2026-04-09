@@ -15,6 +15,20 @@
   The goal should be an outcome a human would verify, not a technology decision.
 -->
 
+## Project Overview
+{{One-paragraph description of the project — stack, architecture, primary concerns.}}
+
+<!--
+  This section is ALWAYS loaded by Netrunner regardless of query scope.
+  Keep it to a paragraph. It should read like a project README's opening.
+
+  Example: "React 18 + Next.js 14 app store with Postgres backend, deployed on Vercel.
+  Core concerns: semantic search over product catalog, cart checkout, infra cost,
+  i18n for 7 locales, auth via Clerk."
+
+  List the main concern areas so Netrunner can scope fresh queries against them.
+-->
+
 ## Current State
 | Metric | Current | Target |
 |--------|---------|--------|
@@ -53,6 +67,31 @@
   | Out-of-sample holdout sacred | Touching test set corrupts it                  | No trustworthy performance est   |
 -->
 
+## Active Work
+**Current focus:** {{What is actively being built/fixed right now — one line}}
+**Keywords:** {{comma,separated,keywords,for,scope,matching}}
+**Session started:** {{YYYY-MM-DD of when this focus became active}}
+**Related files:** {{path/to/file1, path/to/file2}}
+
+<!--
+  IMPORTANT: This section is ONLY loaded by Netrunner when the current query
+  matches one of the Keywords. For orthogonal queries ("is infra cost optimised"
+  when active work is "semantic search"), Netrunner SKIPS this section to avoid
+  anchoring bias.
+
+  Keep Keywords specific. Good: "semantic,search,embedding,vector,pgvector,RAG".
+  Bad: "feature,code,app".
+
+  Update this every time you switch focus. Stale Active Work causes Netrunner
+  to anchor on irrelevant history — the exact bug this section prevents.
+
+  Example:
+  **Current focus:** Implementing semantic search over product catalog
+  **Keywords:** semantic,search,embedding,vector,pgvector,rag,product,catalog
+  **Session started:** 2026-04-05
+  **Related files:** lib/search.ts, api/search/route.ts, db/migrations/add_embeddings.sql
+-->
+
 ## Diagnostic State
 **Active hypothesis:** {{What is the core challenge and WHY does it exist?}}
 **Evidence for:** {{signals supporting hypothesis}}
@@ -73,15 +112,19 @@
 -->
 
 ## What Has Been Tried
-| Approach | Outcome | Confidence | Failure Mode | Phase | Date |
-|----------|---------|------------|--------------|-------|------|
+| Approach | Topic | Outcome | Confidence | Failure Mode | Phase | Date |
+|----------|-------|---------|------------|--------------|-------|------|
 
 <!--
   Example entries (uncomment and adapt):
-  | Attention pooling     | FAILED  | High   | No improvement over mean pool; attention weights uniform | Phase 2 | 2025-03-15 |
-  | Label smoothing 0.1   | CHANGED | Medium | +0.5% val_acc but unstable training dynamics            | Phase 2 | 2025-03-14 |
-  | Feature normalization | TAINTED | Low    | Bug in norm code discovered after experiment            | Phase 1 | 2025-03-10 |
+  | Attention pooling     | model      | FAILED  | High   | No improvement over mean pool; attention weights uniform | Phase 2 | 2025-03-15 |
+  | Label smoothing 0.1   | model      | CHANGED | Medium | +0.5% val_acc but unstable training dynamics            | Phase 2 | 2025-03-14 |
+  | Feature normalization | features   | TAINTED | Low    | Bug in norm code discovered after experiment            | Phase 1 | 2025-03-10 |
+  | pgvector HNSW tuning  | search     | FIXED   | High   | Recall@10 hit target after ef_search=100                | Phase 3 | 2026-04-05 |
 
+  Topic: short tag matching a project concern area (search, auth, infra, features, model, api, ui, db, etc).
+    Netrunner filters this table by topic when the query is ORTHOGONAL to active work.
+    If topic is empty, entry is treated as project-wide.
   Outcome values: FAILED / FIXED / CHANGED / TAINTED / REMOVED / DEBUNKED
   Confidence: High (rigorous test) / Medium (reasonable test) / Low (quick experiment) / Unknown
 

@@ -7,10 +7,11 @@ Expert diagnostic skill for any software project — with deep specialization in
 
 **How it works:**
 1. Load project context from `.planning/CONTEXT.md` (or `.claude/netrunner/context.md` legacy path)
-2. Classify query using two-tier system: shape x subtype. Detect domain and activate expert persona.
-3. Ask targeted diagnostic questions (or infer from rich context — skip when context is sufficient)
-4. State a diagnostic hypothesis before avenues (for applicable types)
-5. Produce avenues with mechanism, gain, risk, verification, and effort — filtered through domain-expert reasoning
+2. **Detect query scope** — is this query about the active work, orthogonal to it, or project-wide? Load context sections selectively to avoid anchoring bias.
+3. Classify query using two-tier system: shape x subtype. Detect domain and activate expert persona.
+4. Ask targeted diagnostic questions (or infer from rich context — skip when context is sufficient)
+5. State a diagnostic hypothesis before avenues (for applicable types)
+6. Produce avenues with mechanism, gain, risk, verification, and effort — filtered through domain-expert reasoning
 </objective>
 
 <context>
@@ -228,6 +229,77 @@ When auto-research signals detected:
    - Web: recommend Lighthouse scores as eval metric
    - API: recommend latency/throughput benchmarks as eval metric
 
+## Step 0.5 — Query Scope Detection
+
+**Purpose:** Prevent anchoring bias. CONTEXT.md accumulates active-work details (current feature, recent hypothesis, tried approaches for one specific thread). When a fresh session asks an *orthogonal* question ("is the infra cost optimised" while CONTEXT.md is full of "semantic search" state), loading the active-work sections unfiltered biases every downstream step — classification, hypothesis, avenues. This step decides which sections of CONTEXT.md actually apply to THIS query before Step 1 runs.
+
+**Always-loaded sections** (project-wide, never scope-filtered):
+- `## Project Goal`
+- `## Project Overview` (if present)
+- `## Current State`
+- `## Hard Constraints`
+- `## Domain Knowledge`
+- Research corpus synthesis (if `RESEARCH_CORPUS = true`)
+
+**Scope-filtered sections** (loaded only if query matches active work):
+- `## Active Work` (if present)
+- `## Diagnostic State` (biased toward active work's hypothesis)
+- `## What Has Been Tried` — filtered by Topic column when ORTHOGONAL/BROAD
+
+### Procedure
+
+**1. Extract query keywords.** Tokenize the raw query. Drop stopwords. Keep noun phrases, technical terms, and domain vocabulary. Expand simple synonyms (e.g. "infra" → {infra, infrastructure, hosting, deploy, ops}; "cost" → {cost, billing, pricing, spend}; "perf" → {perf, performance, latency, speed}).
+
+**2. Extract active-work keywords** from context (in priority order):
+- `## Active Work` → `Keywords:` line (explicit — highest priority)
+- `## Diagnostic State` → active hypothesis text (extract noun phrases)
+- `## What Has Been Tried` → most recent 3 entries' approach names
+- Failing the above, use the entire CONTEXT.md as a weak keyword bag
+
+**3. Score overlap.**
+- Let `Q` = query keyword set, `A` = active-work keyword set
+- `overlap = |Q ∩ A|` (count of shared keywords, case-insensitive, stem-matched)
+
+**4. Classify scope.**
+
+| Scope | Rule | Behavior |
+|-------|------|----------|
+| `FOCUSED` | `overlap >= 2` OR query explicitly names a file/concept from Active Work | Load all context sections as-is. Default behavior. |
+| `ORTHOGONAL` | `overlap == 0` AND query names a different concern area (e.g. infra/auth/perf when active work is a feature) | Load ONLY always-loaded sections. Suppress Active Work + Diagnostic State. Filter What Has Been Tried to entries with matching Topic tag (or no topic). |
+| `BROAD` | `overlap == 0` AND query is project-wide meta ("architecture sound?", "biggest risks", "what now strategically") | Load ONLY always-loaded sections. Treat session as cold-start for hypothesis purposes. |
+| `AMBIGUOUS` | `overlap == 1` OR can't tell | **Default to ORTHOGONAL** — it is asymmetrically safer to broaden than to anchor wrongly. |
+
+**5. Proactive codebase exploration for ORTHOGONAL/BROAD.**
+When scope is not FOCUSED, do not rely on CONTEXT.md to know where relevant code lives. Run targeted searches based on query keywords:
+- `Glob` for file patterns matching the query concern (e.g. query "infra cost" → glob `**/{Dockerfile,*.tf,*.yml,*.yaml,vercel.json,wrangler.toml,serverless.yml,package.json}`)
+- `Grep` for query terms in likely areas (e.g. "cost" → grep config files, deployment manifests, README sections on pricing)
+- For large repos, cap at 1-2 targeted queries — the goal is to surface relevance, not map the codebase
+
+This replaces the failure mode where Netrunner reads CONTEXT.md and treats it as the authoritative map of the project.
+
+**6. Emit scope banner.** Every response begins with a visible one-line banner so the user can see (and override) the scope decision:
+
+```
+Scope: FOCUSED     — loading all CONTEXT.md sections
+Scope: ORTHOGONAL  — query="[topic]" active_work="[topic]" — Active Work suppressed
+Scope: BROAD       — project-wide query — Active Work suppressed
+Scope: AMBIGUOUS→ORTHOGONAL — defaulting to broad view (--focus to override)
+```
+
+**7. Overrides.**
+- User passes `--focus` → force FOCUSED regardless of overlap
+- User passes `--broad` → force BROAD
+- User query starts with "about the current work" / "for this feature" → force FOCUSED
+- User query starts with "generally" / "overall" / "project-wide" → force BROAD
+
+### Backwards compatibility
+
+CONTEXT.md files predating this feature have no `## Active Work` section and no Topic column in What Has Been Tried. Handle gracefully:
+
+- **No Active Work section** → derive active-work keywords from Diagnostic State active hypothesis + latest 3 tried entries
+- **No Topic column** → when filtering What Has Been Tried for ORTHOGONAL/BROAD, keep entries whose approach name contains query keywords; drop the rest
+- **Schema migration on first write-back** (Step 4): add empty `## Active Work` section stub + Topic column, populate Topic for new entries going forward
+
 ### Subcommand: `init`
 
 If `$ARGUMENTS` is exactly `init` or starts with `init`:
@@ -283,6 +355,8 @@ Each shape has domain-specific subtypes. Detect from project context + query:
 **If context exists:** Use context to refine classification. Prior diagnostic state, tried approaches, and constraints all inform the subtype.
 
 **If no context:** Classify from query alone. Be explicit about lower confidence.
+
+**Scope gate:** If scope is ORTHOGONAL or BROAD, DO NOT inherit classification from the active work's shape/subtype. Re-classify from the query alone, as if it were a cold query. The active work's subtype is almost certainly wrong for an orthogonal query. Example: active work is `OPTIMIZE:REFINEMENT` on a model; orthogonal query "is infra cost optimised" should classify as `OPTIMIZE:REFINEMENT` on Systems/Infra:MONITORING — not inherit the ML subtype.
 
 ## Step 2 — Diagnostic questions
 
@@ -345,13 +419,16 @@ Proceed to Step 3 with inferred frame. Do NOT stop.
 ### For all types, first state the active constraint frame:
 
 ```
+SCOPE: [FOCUSED | ORTHOGONAL | BROAD] — [one-line reason]
 QUERY (reframed): [original query rewritten with precision]
 METRICS IN SCOPE: [concrete success criteria from answers + context]
-CONSTRAINTS ACTIVE: [what cannot change]
-CLOSED PATHS (high-confidence failures): [approaches with High impl. confidence — excluded]
+CONSTRAINTS ACTIVE: [what cannot change — project-wide only for ORTHOGONAL/BROAD]
+CLOSED PATHS (high-confidence failures): [approaches with High impl. confidence — topic-filtered if not FOCUSED]
 UNCERTAIN FAILURES (low/unknown confidence): [approaches not reliably tested — flag for reinvestigation]
 DIAGNOSTIC SIGNALS: [key observations that constrain the solution space]
 ```
+
+**ORTHOGONAL/BROAD note:** When scope is not FOCUSED, the hypothesis and avenues must come from the query + always-loaded context + codebase exploration — NOT from the Diagnostic State or Active Work. Treat the session as if you'd just arrived at the repository with only the project overview in hand.
 
 ### For FIX:DEBUGGING and OPTIMIZE:REFINEMENT:
 
@@ -459,6 +536,18 @@ No avenues unless the explanation reveals a new opportunity. No diagnostic quest
 
 After producing the response, update the context file with new knowledge from this session.
 
+### Scope-aware updates (critical)
+
+The scope determined in Step 0.5 controls what gets written back:
+
+| Scope | What to update |
+|-------|---------------|
+| `FOCUSED` | Normal update — Diagnostic State, Active Work, What Has Been Tried (no topic change) |
+| `ORTHOGONAL` | **DO NOT** modify `## Active Work` or `## Diagnostic State` — the active work thread is unrelated. New `What Has Been Tried` entries MUST get a Topic tag matching this query's concern area, NOT the active work's topic. |
+| `BROAD` | **DO NOT** modify `## Active Work` or `## Diagnostic State`. Only append to Update Log and (optionally) Hard Constraints if a project-wide constraint was identified. |
+
+**Why this matters:** Without scope-aware writes, every orthogonal query pollutes the active work thread — the exact bug the scope detector prevents on read. Without filtering here, the next session's FOCUSED call loads a contaminated Diagnostic State.
+
 ### Session-aware batching
 
 **First /nr call in session** — full update:
@@ -501,6 +590,10 @@ A failure recorded as `Unknown` confidence is not evidence the approach is wrong
 </process>
 
 <success_criteria>
+- **Query scope detected (FOCUSED/ORTHOGONAL/BROAD) and banner emitted before classification**
+- **Orthogonal/broad queries do NOT inherit active work's classification, hypothesis, or tried approaches**
+- **Orthogonal/broad queries trigger targeted codebase exploration instead of relying on CONTEXT.md as map**
+- **Context write-back is scope-aware — orthogonal queries do not pollute the active work thread**
 - Classification is specific (shape + subtype + domain), not vague
 - Domain detected and expert persona activated (quant persona for trading projects)
 - For FIX/OPTIMIZE: diagnostic hypothesis stated before avenues, grounded in evidence
