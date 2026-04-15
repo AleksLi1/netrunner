@@ -151,10 +151,51 @@ try {
     registerHook('PreToolUse', 'nr-safety-gate.js', 'nr-safety-gate');
   }
 
-  // --- 6b. Permission auto-configuration ---
-  // Add baseline Netrunner permissions so brain write-backs, git reads, and
-  // directory ops don't require manual approval on every invocation.
-  // Idempotent: each permission is tagged with a trailing comment marker.
+  // PostToolUse: context monitor (agent-facing context exhaustion warnings)
+  const ctxMonitorHook = path.join(HOOKS_DIR, 'nr-context-monitor.js');
+  if (fs.existsSync(ctxMonitorHook)) {
+    registerHook('PostToolUse', 'nr-context-monitor.js', 'nr-context-monitor');
+  }
+
+  // PostToolUse: deep work monitor (depth coaching reminders)
+  const deepWorkHook = path.join(HOOKS_DIR, 'nr-deep-work.js');
+  if (fs.existsSync(deepWorkHook)) {
+    registerHook('PostToolUse', 'nr-deep-work.js', 'nr-deep-work');
+  }
+
+  // --- 6c. Statusline configuration ---
+  // Register nr-statusline.js as the statusLine (replaces GSD's if present).
+  // This makes NR independent of GSD for the statusline + bridge file.
+  const nrStatuslineHook = path.join(HOOKS_DIR, 'nr-statusline.js');
+  if (fs.existsSync(nrStatuslineHook)) {
+    const nrStatuslineCmd = `node "${nrStatuslineHook.replace(/\\/g, '/')}"`;
+    const currentStatusline = settings.statusLine;
+    const isNrStatusline = currentStatusline
+      && typeof currentStatusline.command === 'string'
+      && currentStatusline.command.includes('nr-statusline');
+    if (!isNrStatusline) {
+      settings.statusLine = { type: 'command', command: nrStatuslineCmd };
+      console.log('  Configured nr-statusline.js as statusLine');
+      settingsChanged = true;
+    }
+  }
+
+  // --- 6d. Clean up superseded hooks ---
+  // Remove old deep-work-monitor.js (manual install) from PostToolUse — replaced by nr-deep-work.js
+  if (settings.hooks.PostToolUse) {
+    const beforeLen = settings.hooks.PostToolUse.length;
+    settings.hooks.PostToolUse = settings.hooks.PostToolUse.filter(group => {
+      if (!group || !Array.isArray(group.hooks)) return true;
+      return !group.hooks.some(h => h && typeof h.command === 'string'
+        && h.command.includes('deep-work-monitor') && !h.command.includes('nr-deep-work'));
+    });
+    if (settings.hooks.PostToolUse.length < beforeLen) {
+      console.log('  Replaced deep-work-monitor.js with nr-deep-work.js');
+      settingsChanged = true;
+    }
+  }
+
+  // --- 6e. Permission auto-configuration ---
   settings.permissions = settings.permissions || {};
   if (!Array.isArray(settings.permissions.allow)) {
     settings.permissions.allow = [];
