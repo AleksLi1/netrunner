@@ -197,6 +197,7 @@ Apply the **first matching** rule:
 | COLD | Quant strategy description (3+ quant signals) | `BUILD_STRATEGY` | BUILD_STRATEGY |
 | COLD | Bug/error/crash description | `QUICK_DEBUG` | DEBUG |
 | COLD | Bounded single task | `QUICK_TASK` | QUICK_EXECUTE |
+| COLD | "export plan" / "handoff" / "for codex" / "for copilot" | `PLAN_EXPORT` | EXPORT_PLAN |
 | COLD | "audit" / "scan" / "check code" + quant context | `QUANT_AUDIT` | AUDIT |
 | COLD | "export" / "send to" / "transfer to" / "package for" | `TRANSFER_EXPORT` | EXPORT |
 | COLD | "import" / "integrate from" / `.ntp` file referenced | `TRANSFER_IMPORT` | IMPORT |
@@ -211,8 +212,10 @@ Apply the **first matching** rule:
 | WARM | "auto-research" / "experiment loop" / "research loop" + eval description | `AUTO_RESEARCH` | AUTO_RESEARCH |
 | WARM | "phase N" explicit | `EXPLICIT` | Whatever phase N needs |
 | WARM | Bounded task not in roadmap | `QUICK_TASK` | QUICK_EXECUTE |
+| WARM | "export plan" / "handoff" / "for codex" / "for copilot" | `PLAN_EXPORT` | EXPORT_PLAN |
 | WARM | Progress/status inquiry | `PROGRESS` | Display progress, ask for next action |
 | HOT | "auto-research" / "experiment loop" / "research loop" + eval description | `AUTO_RESEARCH` | AUTO_RESEARCH |
+| HOT | "export plan" / "handoff" / "for codex" / "for copilot" | `PLAN_EXPORT` | EXPORT_PLAN |
 | HOT | New work description | `EXTEND` | Add phases to roadmap, then PLAN |
 | HOT | "export" / "send to" / "transfer to" | `TRANSFER_EXPORT` | EXPORT |
 | HOT | "import" / "integrate from" / `.ntp` file referenced | `TRANSFER_IMPORT` | IMPORT |
@@ -716,6 +719,74 @@ Write REMEDIATION-PLAN.md to .planning/phase-[N]/")
 
 **Next:** EXECUTE (remediation plan), then re-VERIFY.
 
+## Action: EXPORT_PLAN
+
+**Triggers:** `PLAN_EXPORT` mode — user wants to hand off plan to another model (Codex, Copilot, etc.)
+**Reference:** `~/.claude/netrunner/workflows/export-plan.md`
+
+Converts Netrunner PLAN.md files into model-agnostic task lists. Strips Netrunner-specific
+metadata and produces clear, self-contained instructions any coding agent can execute.
+
+**1. Determine scope:**
+- Default: current phase (from STATE.md)
+- `--all`: all planned phases
+- `--phase N`: specific phase
+- If no phases are planned yet, inform user and suggest running `/nr:run` first to generate plans
+
+**2. Read plan files** from `.planning/phases/{phase}/*-PLAN.md`.
+
+**3. Transform each plan:**
+
+For each PLAN.md:
+- Extract: objective, files_modified, task names, action blocks, acceptance_criteria
+- Strip: YAML frontmatter, execution_context, Netrunner file references, verify automated blocks
+- Flatten wave dependencies into sequential task order
+- Replace internal paths (`~/.claude/netrunner/...`) with direct descriptions
+
+**4. Write HANDOFF.md:**
+
+```markdown
+# Task Handoff: [Phase Name]
+
+## Goal
+[Objective paragraph]
+
+## Files Involved
+- `path/file.ext` — [what changes]
+
+## Tasks
+
+### Task 1: [Name]
+**Files:** `path/file.ext`
+**What to do:**
+[Instructions from action block — clear, specific, self-contained]
+
+**Done when:**
+- [Acceptance criteria]
+
+## Verification
+[Success criteria from plan]
+```
+
+Write to `.planning/HANDOFF.md` (single phase) or `.planning/HANDOFF-all.md` (all phases).
+
+**5. Display summary:**
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+ NR ► PLAN EXPORTED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ Exported: Phase [N] — [name] ([tasks] tasks)
+ Output: .planning/HANDOFF.md
+
+ Hand this file to Codex, Copilot, or any coding agent.
+ No Netrunner context needed — instructions are self-contained.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+**Next:** DONE.
+
 ## Action: QUICK_EXECUTE
 
 **Triggers:** `QUICK_TASK` mode — bounded task, no full project machinery needed.
@@ -1092,7 +1163,7 @@ SESSION_START_TIME = now
 LOOP:
   if CYCLE_COUNT > SESSION_CYCLE_CAP: HALT "Safety limit: [cap] cycles."
   Brain Assess → may re-route CURRENT_ACTION
-  Dispatch CURRENT_ACTION (SCOPE|PLAN|EXECUTE|VERIFY|ACCEPT_TEST|TRANSITION|DEBUG|REMEDIATE|QUICK_EXECUTE|PROGRESS|BUILD_STRATEGY|AUDIT|EXPORT|IMPORT|AUTO_RESEARCH|EXTEND_WORK|DONE)
+  Dispatch CURRENT_ACTION (SCOPE|PLAN|EXECUTE|VERIFY|ACCEPT_TEST|TRANSITION|DEBUG|REMEDIATE|QUICK_EXECUTE|EXPORT_PLAN|PROGRESS|BUILD_STRATEGY|AUDIT|EXPORT|IMPORT|AUTO_RESEARCH|EXTEND_WORK|DONE)
   if DONE:
     if SESSION_MODE == EXTENDED and time_remaining(SESSION_END_TIME):
       CURRENT_ACTION = EXTEND_WORK

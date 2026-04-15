@@ -90,48 +90,123 @@ if (fs.existsSync(nrTools)) {
   try { fs.chmodSync(nrTools, '755'); } catch (e) { /* Windows */ }
 }
 
-// 5. Install update-check hook -> ~/.claude/hooks/
+// 5. Install all hooks -> ~/.claude/hooks/
 ensureDir(HOOKS_DIR);
-const srcHook = path.join(PKG_DIR, 'hooks', 'nr-check-update.js');
-const destHook = path.join(HOOKS_DIR, 'nr-check-update.js');
-if (fs.existsSync(srcHook)) {
-  copyFile(srcHook, destHook);
-  console.log('  Installed hook: nr-check-update.js');
-}
-
-// 6. Register SessionStart hook in ~/.claude/settings.json (idempotent)
-const settingsFile = path.join(CLAUDE_DIR, 'settings.json');
-if (fs.existsSync(destHook)) {
-  try {
-    let settings = {};
-    if (fs.existsSync(settingsFile)) {
-      settings = JSON.parse(fs.readFileSync(settingsFile, 'utf8'));
+const hooksSourceDir = path.join(PKG_DIR, 'hooks');
+if (fs.existsSync(hooksSourceDir)) {
+  for (const file of fs.readdirSync(hooksSourceDir)) {
+    if (file.startsWith('nr-') && file.endsWith('.js')) {
+      copyFile(path.join(hooksSourceDir, file), path.join(HOOKS_DIR, file));
+      console.log(`  Installed hook: ${file}`);
     }
-    settings.hooks = settings.hooks || {};
-    if (!Array.isArray(settings.hooks.SessionStart)) {
-      settings.hooks.SessionStart = [];
-    }
-
-    // Cross-platform command format (forward slashes work on Windows node).
-    const hookPath = destHook.replace(/\\/g, '/');
-    const hookCmd = `node "${hookPath}"`;
-
-    // Check if any existing SessionStart hook entry already runs our check.
-    const alreadyRegistered = settings.hooks.SessionStart.some(group => {
-      if (!group || !Array.isArray(group.hooks)) return false;
-      return group.hooks.some(h => h && typeof h.command === 'string' && h.command.includes('nr-check-update'));
-    });
-
-    if (!alreadyRegistered) {
-      settings.hooks.SessionStart.push({
-        hooks: [{ type: 'command', command: hookCmd }]
-      });
-      fs.writeFileSync(settingsFile, JSON.stringify(settings, null, 2));
-      console.log('  Registered SessionStart hook in settings.json');
-    }
-  } catch (e) {
-    console.log(`  (could not patch settings.json: ${e.message})`);
   }
+}
+const destHook = path.join(HOOKS_DIR, 'nr-check-update.js');
+
+// 6. Register hooks + permissions in ~/.claude/settings.json (idempotent)
+const settingsFile = path.join(CLAUDE_DIR, 'settings.json');
+try {
+  let settings = {};
+  if (fs.existsSync(settingsFile)) {
+    settings = JSON.parse(fs.readFileSync(settingsFile, 'utf8'));
+  }
+  let settingsChanged = false;
+
+  // --- 6a. Hook registration ---
+  settings.hooks = settings.hooks || {};
+
+  // Helper: register a hook for an event (idempotent by marker string)
+  function registerHook(event, hookFile, marker) {
+    if (!Array.isArray(settings.hooks[event])) {
+      settings.hooks[event] = [];
+    }
+    const alreadyRegistered = settings.hooks[event].some(group => {
+      if (!group || !Array.isArray(group.hooks)) return false;
+      return group.hooks.some(h => h && typeof h.command === 'string' && h.command.includes(marker));
+    });
+    if (!alreadyRegistered) {
+      const hp = path.join(HOOKS_DIR, hookFile).replace(/\\/g, '/');
+      settings.hooks[event].push({
+        hooks: [{ type: 'command', command: `node "${hp}"` }]
+      });
+      console.log(`  Registered ${event} hook: ${hookFile}`);
+      settingsChanged = true;
+    }
+  }
+
+  // SessionStart: update checker
+  if (fs.existsSync(destHook)) {
+    registerHook('SessionStart', 'nr-check-update.js', 'nr-check-update');
+  }
+
+  // Stop: auto-save context state at end of each turn
+  const ctxSaveHook = path.join(HOOKS_DIR, 'nr-context-save.js');
+  if (fs.existsSync(ctxSaveHook)) {
+    registerHook('Stop', 'nr-context-save.js', 'nr-context-save');
+  }
+
+  // PreToolUse: safety gate for destructive commands
+  const safetyHook = path.join(HOOKS_DIR, 'nr-safety-gate.js');
+  if (fs.existsSync(safetyHook)) {
+    registerHook('PreToolUse', 'nr-safety-gate.js', 'nr-safety-gate');
+  }
+
+  // --- 6b. Permission auto-configuration ---
+  // Add baseline Netrunner permissions so brain write-backs, git reads, and
+  // directory ops don't require manual approval on every invocation.
+  // Idempotent: each permission is tagged with a trailing comment marker.
+  settings.permissions = settings.permissions || {};
+  if (!Array.isArray(settings.permissions.allow)) {
+    settings.permissions.allow = [];
+  }
+
+  const NR_PERMISSIONS_MARKER = '## nr-auto';
+  const nrPermissions = [
+    // Core: brain CLI calls (every agent invokes this)
+    'Bash(node *nr-tools.cjs*)',
+    // Read-only git operations (agents check status/log/diff constantly)
+    'Bash(git status*)',
+    'Bash(git log*)',
+    'Bash(git diff*)',
+    'Bash(git branch*)',
+    'Bash(git show*)',
+    // Directory operations
+    'Bash(ls *)',
+    'Bash(mkdir *)',
+    // Common build/test runners
+    'Bash(npm run *)',
+    'Bash(npm test*)',
+    'Bash(npx *)',
+    'Bash(python -m pytest*)',
+    'Bash(pip install*)',
+  ];
+
+  // Check if we've already added our permissions (look for marker)
+  const hasNrPerms = settings.permissions.allow.some(
+    p => typeof p === 'string' && p.includes(NR_PERMISSIONS_MARKER)
+  );
+
+  if (!hasNrPerms) {
+    // Add marker entry + all permissions
+    settings.permissions.allow.push(`${NR_PERMISSIONS_MARKER}`);
+    for (const perm of nrPermissions) {
+      // Don't add if user already has a broader or matching rule
+      const alreadyHas = settings.permissions.allow.some(
+        existing => typeof existing === 'string' && existing === perm
+      );
+      if (!alreadyHas) {
+        settings.permissions.allow.push(perm);
+      }
+    }
+    console.log(`  Added ${nrPermissions.length} baseline permissions (nr-auto)`);
+    settingsChanged = true;
+  }
+
+  if (settingsChanged) {
+    fs.writeFileSync(settingsFile, JSON.stringify(settings, null, 2));
+  }
+} catch (e) {
+  console.log(`  (could not patch settings.json: ${e.message})`);
 }
 
 // 7. Patch gsd-statusline.js to read nr cache (idempotent, only if GSD statusline exists)
