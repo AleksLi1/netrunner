@@ -5,4 +5,5 @@ Thumbs.db
 .idea/
 node_modules/
 *.tgz
+.env
 .playwright-mcp/

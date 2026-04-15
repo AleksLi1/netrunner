@@ -151,12 +151,6 @@ try {
     registerHook('PreToolUse', 'nr-safety-gate.js', 'nr-safety-gate');
   }
 
-  // PostToolUse: context monitor (agent-facing context exhaustion warnings)
-  const ctxMonitorHook = path.join(HOOKS_DIR, 'nr-context-monitor.js');
-  if (fs.existsSync(ctxMonitorHook)) {
-    registerHook('PostToolUse', 'nr-context-monitor.js', 'nr-context-monitor');
-  }
-
   // PostToolUse: deep work monitor (depth coaching reminders)
   const deepWorkHook = path.join(HOOKS_DIR, 'nr-deep-work.js');
   if (fs.existsSync(deepWorkHook)) {
@@ -191,6 +185,18 @@ try {
     });
     if (settings.hooks.PostToolUse.length < beforeLen) {
       console.log('  Replaced deep-work-monitor.js with nr-deep-work.js');
+      settingsChanged = true;
+    }
+
+    // Also remove nr-context-monitor.js if registered (removed in v2.3.1)
+    const beforeCtxLen = settings.hooks.PostToolUse.length;
+    settings.hooks.PostToolUse = settings.hooks.PostToolUse.filter(group => {
+      if (!group || !Array.isArray(group.hooks)) return true;
+      return !group.hooks.some(h => h && typeof h.command === 'string'
+        && h.command.includes('nr-context-monitor'));
+    });
+    if (settings.hooks.PostToolUse.length < beforeCtxLen) {
+      console.log('  Removed nr-context-monitor.js (superseded)');
       settingsChanged = true;
     }
   }
