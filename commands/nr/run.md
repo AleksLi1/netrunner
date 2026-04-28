@@ -849,11 +849,14 @@ This is a specialized workflow for end-to-end quantitative trading strategy deve
 - If fewer than 3 signals, downgrade to `NEW_PROJECT` → SCOPE
 
 **2. Load all quant references:**
-- `references/quant-finance.md` — expert reasoning triggers
+- `references/quant-finance.md` — expert reasoning triggers (includes Complexity Creep, Build-Excite-Audit-Deflate, Intraday Crypto OHLCV triggers)
 - `references/strategy-metrics.md` — evaluation metrics and correct formulas
 - `references/feature-engineering.md` — feature lifecycle and temporal safety
 - `references/ml-training.md` — training pipeline best practices
-- `references/quant-code-patterns.md` — 20 anti-patterns for code scanning
+- `references/quant-code-patterns.md` — 26+ anti-patterns for code scanning (includes real failure patterns: overlapping returns, normalization bugs, shuffled CV, zero-cost sims)
+- `references/backtest-audit-pipeline.md` — mandatory 8-check audit pipeline (overlapping returns, normalization, lookahead, transaction costs, DSR, temporal CV, complexity proportionality, sample size)
+- `references/production-reality.md` — production readiness checklist and realistic cost models
+- `references/overfitting-diagnostics.md` — DSR, PBO, CPCV diagnostic tools
 - `references/research-integration.md` — research corpus protocol (if corpus exists)
 
 **2b. Load research corpus (if exists):**
@@ -870,8 +873,8 @@ Read and follow `~/.claude/netrunner/workflows/build-strategy.md`. The workflow 
 2. Data Infrastructure (gate: TEMPORAL_AUDIT)
 3. Feature Engineering (gate: FEATURE_AUDIT)
 4. Validation Framework (gate: VALIDATION_AUDIT)
-5. Model Development (gate: beats baseline)
-6. Strategy Evaluation (gate: FULL_AUDIT)
+5. Model Development (gate: beats baseline + BACKTEST_AUDIT on all results)
+6. Strategy Evaluation (gate: BACKTEST_AUDIT strict mode + FULL_AUDIT)
 7. Production Readiness (gate: human review)
 
 Each phase follows the standard PLAN → EXECUTE → VERIFY cycle with additional auditor gates.
@@ -893,18 +896,23 @@ node ~/.claude/netrunner/bin/nr-tools.cjs brain add-tried 'Strategy build: [phas
 - If user specifies "temporal" / "lookahead" → `TEMPORAL_AUDIT`
 - If user specifies "features" / "pipeline" → `FEATURE_AUDIT`
 - If user specifies "validation" / "splits" / "metrics" → `VALIDATION_AUDIT`
+- If user specifies "backtest" / "audit pipeline" / "8-check" / "backtest results" → `BACKTEST_AUDIT`
 
 **2. Spawn auditor:**
 ```
 Task(subagent_type="nr-quant-auditor", description="Quant code audit",
   prompt="Run [MODE] audit on the codebase. Write report to .planning/audit/.
-  Load all quant references. Scan all Python files for anti-patterns.
-  Classify severity: CRITICAL/WARNING/INFO. Compute temporal safety score.")
+  Load all quant references including references/backtest-audit-pipeline.md.
+  Scan all Python files for anti-patterns (26 patterns).
+  Classify severity: CRITICAL/WARNING/INFO. Compute temporal safety score.
+  For BACKTEST_AUDIT mode: run all 8 pipeline checks on every backtest result found.
+  Verdict: TRUSTWORTHY/QUESTIONABLE/UNRELIABLE/FRAUDULENT per result.")
 ```
 
 **3. Present results:**
 Display audit score, critical violations count, and top 3 findings.
 If score < 70: recommend immediate fixes before continuing development.
+For BACKTEST_AUDIT: display per-result verdicts and the 52% Ceiling Rule check if BTC OHLCV intraday.
 
 **4. Brain write-back:**
 ```bash

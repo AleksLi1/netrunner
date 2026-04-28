@@ -83,11 +83,13 @@ When planning for the build-strategy workflow (7-phase structure from `workflows
 - Phase ordering is **NON-NEGOTIABLE** (from build-strategy.md):
   1. Ideation/Research → 2. Data Infrastructure → 3. Feature Engineering → 4. Validation Framework → 5. Model Development → 6. Strategy Evaluation → 7. Production Readiness
 - Reference loading per phase:
-  - Phase 2 (Data): `quant-code-patterns.md` for data pipeline patterns
-  - Phase 3 (Features): `feature-engineering.md` for feature lifecycle and temporal safety
-  - Phase 4 (Validation): `strategy-metrics.md` for correct metric implementations
-  - Phase 5 (Model): `ml-training.md` for architecture selection and training pipeline
-  - Phase 6 (Evaluation): ALL references for comprehensive strategy assessment
+  - Phase 1 (Ideation): `academic-research-protocol.md` for literature search, `alpha-decay-patterns.md` for factor viability
+  - Phase 2 (Data): `quant-code-patterns.md` for data pipeline patterns, `production-failure-case-studies.md` Cases 1-3
+  - Phase 3 (Features): `feature-engineering.md` for temporal safety, `production-failure-case-studies.md` Case 5
+  - Phase 4 (Validation): `strategy-metrics.md` for metrics, `overfitting-diagnostics.md` for DSR/PBO/WFE
+  - Phase 5 (Model): `ml-training.md` for architecture/training, `production-failure-case-studies.md` Case 4
+  - Phase 6 (Evaluation): ALL references — especially `overfitting-diagnostics.md` (mandatory diagnostics) and `production-reality.md` (cost sensitivity)
+  - Phase 7 (Production): `production-reality.md` (27-item checklist), `risk-management-framework.md` (kill switches, position sizing), `live-drift-detection.md` (monitoring infrastructure)
 - Gate task template for each phase:
   ```
   Task: Run quant-auditor {MODE} gate

@@ -941,6 +941,444 @@ def temporal_stacking(base_models, X, y, n_splits=5, purge_bars=60):
 
 ---
 
+## Pattern 21: Overlapping Return Windows (P&L Inflation)
+
+A strategy that generates signals every bar but holds for multiple bars can count the same price movement multiple times, inflating P&L by 10-60x.
+
+**WRONG — overlapping returns counted multiple times:**
+```python
+# Signal fires every bar, hold horizon = 10 bars
+# Each bar's return is counted in up to 10 overlapping trades
+total_pnl = 0
+for i in range(len(signals)):
+    if signals[i] == 1:
+        pnl = prices[i + 10] / prices[i] - 1
+        total_pnl += pnl  # OVERLAPS with adjacent signals!
+
+# Real failure: Strategy showed +170,000 bps
+# After fixing overlaps: +2,800 bps (60x inflation)
+```
+
+**CORRECT — non-overlapping trade accounting:**
+```python
+# Method 1: Only count trades that don't overlap
+total_pnl = 0
+last_exit = -1
+for i in range(len(signals)):
+    if signals[i] == 1 and i > last_exit:
+        exit_bar = i + 10
+        pnl = prices[exit_bar] / prices[i] - 1
+        total_pnl += pnl
+        last_exit = exit_bar
+
+# Method 2: Mark-to-market position tracking
+position = 0
+daily_returns = []
+for i in range(1, len(prices)):
+    daily_returns.append(position * (prices[i] / prices[i-1] - 1))
+    if signals[i] == 1:
+        position = 1  # Enter or maintain
+    elif i - last_entry >= 10:
+        position = 0  # Exit after hold period
+# P&L = sum(daily_returns) — no overlap possible
+```
+
+**Diagnostic question:** "If two trades overlap in time, is the price movement in the overlap counted once or twice?"
+
+**Detection rule:** Compare total trade P&L to mark-to-market P&L. If they differ by >10%, overlapping returns are likely present.
+
+---
+
+## Pattern 22: Normalization Bug (Zero-Sum Signal Destruction)
+
+Z-scoring training features using training-set statistics makes them sum to zero, destroying any signal that correlates with feature magnitude.
+
+**WRONG — z-scoring destroys directional signal:**
+```python
+# After this, sum of normalized features = 0 by mathematical identity
+mean = X_train.mean(axis=0)
+std = X_train.std(axis=0)
+X_train_z = (X_train - mean) / std
+# If direction correlates with feature LEVEL (not just relative ranking),
+# this normalization removes that information entirely
+
+# Real failure: 42 models trained on z-scored features
+# All converged to 50.9% — the noise floor
+# Honest signal existed but was destroyed by preprocessing
+```
+
+**CORRECT — preserve signal while stabilizing scale:**
+```python
+# Option 1: Expanding-window normalization (causal, preserves cross-time signal)
+for t in range(lookback, len(X)):
+    window = X[max(0, t-lookback):t]  # Strictly past data
+    mean_t = window.mean(axis=0)
+    std_t = window.std(axis=0).clip(min=1e-8)
+    X_norm[t] = (X[t] - mean_t) / std_t
+
+# Option 2: Rank transform (preserves ordering, robust to outliers)
+from scipy.stats import rankdata
+X_ranked = np.apply_along_axis(lambda x: rankdata(x) / len(x), 0, X_train)
+
+# Option 3: If you must z-score, verify signal preservation
+raw_ic = np.corrcoef(X_train.mean(axis=1), y_train)[0, 1]
+normed_ic = np.corrcoef(X_train_z.mean(axis=1), y_train)[0, 1]
+assert abs(normed_ic) >= abs(raw_ic) * 0.5, "Normalization destroyed >50% of signal"
+```
+
+**Diagnostic question:** "After normalization, do the features still correlate with the labels? Test this explicitly."
+
+---
+
+## Pattern 23: Within-Window Lookahead for Regime Detection
+
+Computing volatility terciles or regime labels using data from the ENTIRE window (including the portion being evaluated) leaks information about the current state.
+
+**WRONG — regime labels use within-window data:**
+```python
+# Volatility terciles computed on the full evaluation window
+window_data = returns[start:end]
+vol = window_data.rolling(20).std()
+terciles = pd.qcut(vol, 3, labels=['low', 'mid', 'high'])
+# Problem: the tercile boundaries use data from the CURRENT bar
+# You're using information about whether current vol is "high" or "low"
+# relative to the rest of the window — which you wouldn't know in real time
+```
+
+**CORRECT — regime labels from strictly past data:**
+```python
+# Expanding-window regime detection
+for t in range(lookback, len(returns)):
+    past_vol = returns[:t].rolling(20).std()
+    current_vol = returns[t-20:t].std()
+    # Tercile boundaries from past data only
+    boundaries = past_vol.quantile([0.33, 0.67])
+    if current_vol < boundaries.iloc[0]:
+        regime[t] = 'low_vol'
+    elif current_vol < boundaries.iloc[1]:
+        regime[t] = 'mid_vol'
+    else:
+        regime[t] = 'high_vol'
+```
+
+**Diagnostic question:** "Are the regime boundaries/tercile thresholds computed from data that includes the current evaluation period?"
+
+---
+
+## Pattern 24: Shuffled CV Masking Complete Absence of Signal
+
+Shuffled cross-validation on time series data gives dramatically inflated scores because it allows the model to memorize temporal autocorrelation patterns that span train/test boundaries.
+
+**WRONG — shuffled CV hides temporal failure:**
+```python
+from sklearn.model_selection import cross_val_score, KFold
+
+# XGBoost stacking with shuffled K-Fold
+kf = KFold(n_splits=5, shuffle=True, random_state=42)
+scores = cross_val_score(model, X, y, cv=kf, scoring='accuracy')
+print(f"Accuracy: {scores.mean():.2f}")  # Shows 0.74
+
+# Real failure: Temporal CV on the SAME model → 0.50
+# 100% of the apparent skill was temporal leakage
+# The model memorized autocorrelation patterns crossing fold boundaries
+```
+
+**CORRECT — temporal CV as ground truth:**
+```python
+from sklearn.model_selection import TimeSeriesSplit
+
+# ALWAYS use temporal CV for time series
+tscv = TimeSeriesSplit(n_splits=5)
+scores = []
+for train_idx, test_idx in tscv.split(X):
+    model.fit(X[train_idx], y[train_idx])
+    score = model.score(X[test_idx], y[test_idx])
+    scores.append(score)
+
+# DIAGNOSTIC: If shuffled >> temporal, the model has ZERO real skill
+shuffled_score = 0.74  # From shuffled CV
+temporal_score = 0.50  # From temporal CV
+if shuffled_score > temporal_score * 1.3:
+    print(f"WARNING: {(shuffled_score/temporal_score - 1)*100:.0f}% of skill is leakage")
+```
+
+**Rule:** Run BOTH shuffled and temporal CV. If shuffled > 1.3x temporal, the model has no real predictive power.
+
+---
+
+## Pattern 25: Simulation Loop with Zero Transaction Costs
+
+Research scripts that simulate strategy performance without accounting for transaction costs produce results that are guaranteed to fail in production for any intraday strategy.
+
+**WRONG — simulation ignores costs:**
+```python
+# Simulation loop that looks great on paper
+pnl = 0
+for signal, actual_return in zip(signals, returns):
+    if signal == 1:  # Predicted up
+        pnl += actual_return
+    elif signal == -1:  # Predicted down
+        pnl -= actual_return
+    # NO COSTS APPLIED!
+
+# Real failure: +2,381 bps without costs
+# With 7 bps round-trip costs: +79 bps
+# A 30x difference that destroyed the business case
+```
+
+**CORRECT — costs are non-negotiable:**
+```python
+# Every position change incurs costs
+pnl = 0
+prev_position = 0
+ONE_WAY_COST_BPS = 3.5  # Conservative one-way cost
+
+for i, (signal, actual_return) in enumerate(zip(signals, returns)):
+    new_position = signal  # -1, 0, or 1
+
+    # Cost on position change
+    position_change = abs(new_position - prev_position)
+    cost = position_change * ONE_WAY_COST_BPS / 10000
+
+    # P&L from holding
+    holding_pnl = prev_position * actual_return
+
+    pnl += holding_pnl - cost
+    prev_position = new_position
+
+# ALWAYS report both gross and net P&L
+print(f"Gross P&L: {gross_pnl:.0f} bps")
+print(f"Cost drag: {total_costs:.0f} bps")
+print(f"Net P&L:   {pnl:.0f} bps")
+print(f"Cost/Gross ratio: {total_costs/max(gross_pnl, 1):.1%}")
+```
+
+**Hard rule:** If `cost_drag / gross_pnl > 0.70`, the strategy is not viable. The edge is too thin relative to execution costs.
+
+---
+
+## Pattern 26: Parameter Selection on Evaluation Data
+
+Selecting strategy parameters (thresholds, lookbacks, sizing) by testing them on the same data used to evaluate the final strategy. This is the most insidious form of overfitting because each "improvement" feels justified.
+
+**WRONG — tuning on evaluation data:**
+```python
+# "Let me try different agreement thresholds on the test set"
+for threshold in [0.60, 0.65, 0.70, 0.75, 0.80, 0.85, 0.90]:
+    accuracy = evaluate_with_threshold(model, X_test, y_test, threshold)
+    print(f"Threshold {threshold}: accuracy {accuracy:.2%}")
+
+# Pick the best one → 0.80 gives 73%!
+# But you just tested 7 variants on test data
+# Real accuracy is lower, and you burned your test set
+
+# Real failure: 88+ such "improvements" on same evaluation data
+# DSR = 6.8% — only 6.8% chance the result is real
+# Expected max Sharpe from 65 zero-alpha trials = 2.37
+# Observed Sharpe = 2.13 — LOWER than expected by chance
+```
+
+**CORRECT — nested validation:**
+```python
+# Split into train / validation / test (or better: walk-forward)
+# Use validation for parameter selection, test ONLY for final evaluation
+
+# Walk-forward parameter selection:
+best_params = {}
+for window_start in range(0, len(data) - train_size - val_size - test_size, step):
+    train = data[window_start : window_start + train_size]
+    val = data[window_start + train_size : window_start + train_size + val_size]
+
+    # Tune on validation
+    best_val_score = -np.inf
+    for threshold in [0.60, 0.70, 0.80, 0.90]:
+        score = evaluate(model, val, threshold)
+        if score > best_val_score:
+            best_val_score = score
+            best_params[window_start] = threshold
+
+# Final evaluation: use best params from validation, evaluate on held-out test
+# Count TOTAL variants tested across ALL windows → use for DSR calculation
+```
+
+**Rule:** Every parameter choice is an implicit hypothesis test. Count them ALL toward N when computing DSR.
+
+---
+
+## Anti-Pattern Summary Table (Updated)
+
+| # | Anti-Pattern | Impact | How to Detect |
+|---|---|---|---|
+| ... | (patterns 1-20 above) | ... | ... |
+| 21 | Overlapping return windows | P&L inflated 10-60x | Compare trade P&L to mark-to-market P&L |
+| 22 | Z-score normalization destroying signal | Model trains on noise, converges to ~50% | Check feature-label correlation before/after normalization |
+| 23 | Within-window regime lookahead | Inflated regime-conditional performance | Check if tercile/regime boundaries use evaluation-period data |
+| 24 | Shuffled CV on time series | Inflates accuracy 20-50% | Compare shuffled vs temporal CV scores |
+| 25 | Simulation with zero costs | P&L inflated by cost drag (often 5-30x) | Check if position changes incur any cost |
+| 26 | Parameter selection on evaluation data | DSR collapses under multiple testing | Count total variants tested, compute DSR |
+| 27 | Alternating/interleaved train-test splits | Massive temporal leakage via autocorrelation | Check if split function creates temporally interleaved blocks |
+| 28 | 100% fill rate assumption | 2-3x cost underestimation in live trading | Check if fill_rate is hardcoded to 1.0 or not modeled |
+| 29 | Signal latency not modeled | Signal decay during execution eats alpha | Check if signal-to-order latency impacts are assessed |
+| 30 | Static orderbook depth assumption | 5-10x capacity overestimation | Check if depth params are regime-conditional |
+| 31 | Constant HMM transition matrix | Regime detection fails during transitions | Check if HMM transition probs are time-varying |
+| 32 | Short-window regime inference | Excessive regime switching (whipsaw) | Check if regime window < 100 bars on minute data |
+
+---
+
+## Pattern 27: Alternating/Interleaved Train-Test Splits (REAL CASE)
+
+Discovered in production repo. Data was split using alternating 3-day blocks between train and test, creating massive leakage.
+
+**WRONG — interleaved blocks:**
+```python
+# Alternating 3-day blocks: train, test, train, test, ...
+def alternating_3d_split(data, block_size=3):
+    train_mask = np.zeros(len(data), dtype=bool)
+    for i in range(0, len(data), block_size * 2):
+        train_mask[i:i+block_size] = True
+    return data[train_mask], data[~train_mask]
+
+# Result: 70% "test" accuracy → 50% on true OOS
+# Because feature windows (60+ bars) bridge train/test boundaries
+```
+
+**CORRECT — strict chronological split with purge:**
+```python
+def temporal_split(data, train_ratio=0.7, purge_bars=60, embargo_bars=10):
+    split_idx = int(len(data) * train_ratio)
+    train = data[:split_idx]
+    test = data[split_idx + purge_bars + embargo_bars:]
+    # purge_bars >= max feature window
+    # embargo_bars >= prediction horizon
+    return train, test
+```
+
+**Real impact:** Model appeared to have 70% directional accuracy. After fixing: ~50% (random). Entire project's results were invalidated.
+
+---
+
+## Pattern 28: Fill Rate and Execution Cost Illusion (REAL CASE)
+
+Discovered in production execution system. Backtest assumed 100% fills at mid-price. Live: 65% fill rate, 8.1 bps costs vs 3.5 bps assumed.
+
+**WRONG — optimistic execution model:**
+```python
+# Backtest: instant fill at mid-price, flat cost
+cost_per_trade = 0.00035  # 3.5 bps flat
+fill_rate = 1.0  # 100% fills assumed
+
+for signal in signals:
+    entry_price = mid_price  # Fantasy price
+    pnl = exit_price - entry_price - cost_per_trade * entry_price
+```
+
+**CORRECT — realistic execution model:**
+```python
+import numpy as np
+
+def realistic_execution_cost(trade_size_usd, daily_volume_usd, spread_bps,
+                              sigma_daily, fee_bps=1.0):
+    """Square-root impact law: Impact = sigma * sqrt(Q/V)"""
+    spread_cost = spread_bps / 2  # Half-spread per side
+    impact = sigma_daily * 10000 * np.sqrt(trade_size_usd / daily_volume_usd)
+    total_one_way = spread_cost + impact + fee_bps
+    return total_one_way  # in bps, per side
+
+def simulate_with_realistic_fills(signals, prices, volume, volatility,
+                                   fill_rate=0.65, latency_bars=1):
+    """Simulate with partial fills, slippage, and latency."""
+    pnl = 0
+    for i, signal in enumerate(signals):
+        if signal == 0:
+            continue
+        # Latency: order placed at bar i, fills at bar i + latency
+        fill_bar = i + latency_bars
+        if fill_bar >= len(prices):
+            continue
+        # Partial fill: only fill_rate fraction of desired size
+        if np.random.random() > fill_rate:
+            continue  # Order didn't fill
+        # Slippage: price moved during latency
+        entry_price = prices[fill_bar]  # Not mid_price at signal time
+        cost = realistic_execution_cost(
+            trade_size_usd=abs(signal) * entry_price,
+            daily_volume_usd=volume[fill_bar],
+            spread_bps=2.0,
+            sigma_daily=volatility[fill_bar]
+        )
+        # ... compute P&L with realistic entry and costs
+```
+
+**Real impact:** Strategy Sharpe dropped from 2.0 to 0.8 after applying realistic costs. 2.3x cost inflation.
+
+---
+
+## Pattern 29: Signal Latency Eating Alpha (REAL CASE)
+
+Signal on 1-minute BTC perp futures decays significantly within execution window (200-500ms).
+
+**WRONG — ignoring signal persistence:**
+```python
+# Generate signal → trade immediately (assume zero latency)
+signal = model.predict(features_at_bar_close)
+execute_trade(signal, price=current_price)  # Assumes instant execution
+```
+
+**CORRECT — model signal persistence and only trade when edge survives latency:**
+```python
+def signal_persistence_analysis(signal_series, return_series, max_delay_bars=10):
+    """Measure how quickly signal predictive power decays with delay."""
+    results = {}
+    for delay in range(max_delay_bars + 1):
+        delayed_returns = return_series.shift(-delay)
+        ic = signal_series.corr(delayed_returns, method='spearman')
+        results[delay] = ic
+    return results  # IC at each delay → estimate half-life
+
+# Only trade when signal strength exceeds latency-adjusted threshold
+persistence = signal_persistence_analysis(signal, returns)
+latency_ic = persistence[estimated_latency_bars]
+if latency_ic / persistence[0] < 0.5:
+    print("WARNING: Signal loses >50% of power during execution latency")
+    print("Options: higher timeframe, faster infrastructure, or accept reduced alpha")
+```
+
+---
+
+## Pattern 30: Constant HMM Transition Matrix (REAL CASE)
+
+Market simulator used constant HMM transition probabilities. Real markets have time-varying regime dynamics.
+
+**WRONG — static transition matrix:**
+```python
+from hmmlearn import hmm
+
+model = hmm.GaussianHMM(n_components=3, n_iter=100)
+model.fit(full_dataset)  # Single calibration on all data
+# model.transmat_ is CONSTANT across all time periods
+# During crisis, transition probs to high-vol state are much higher than average
+```
+
+**CORRECT — time-varying or regime-aware transitions:**
+```python
+def rolling_hmm_calibration(data, window_size=500, n_states=3):
+    """Recalibrate HMM on expanding/rolling window for time-varying dynamics."""
+    transition_history = []
+    for end in range(window_size, len(data)):
+        window = data[end - window_size:end]
+        model = hmm.GaussianHMM(n_components=n_states, n_iter=50)
+        model.fit(window.reshape(-1, 1))
+        transition_history.append(model.transmat_.copy())
+    return transition_history  # Track how transitions evolve
+
+# For simulation: draw transition matrix from historical distribution
+# conditioned on current volatility regime
+```
+
+**Real impact:** Simulator indistinguishability score 84/100 in normal conditions, but orderbook depth stability was 5-10x overestimated during stress events.
+
+---
+
 ## When to Load This Reference
 
 This reference should be loaded by:
@@ -948,4 +1386,5 @@ This reference should be loaded by:
 - **nr-debugger** when investigating LOOKAHEAD_CONTAMINATION or LEAKAGE issues — use as diagnostic checklist
 - **nr-verifier** when verifying quant phase completion — use patterns to scan for anti-patterns in committed code
 - **nr-mapper** (concerns focus) when flagging temporal risks — use anti-pattern summary to identify code smells
-- **nr-quant-auditor** when performing automated code scanning — use all 20 patterns as detection rules
+- **nr-quant-auditor** when performing automated code scanning — use all 26 patterns as detection rules
+- **Backtest audit pipeline** — patterns 21-26 are the most common production failure modes

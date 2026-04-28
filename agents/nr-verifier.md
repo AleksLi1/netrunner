@@ -62,6 +62,23 @@ When quant is detected:
 - [ ] Out-of-sample holdout remains untouched
 - [ ] Feature importance analysis doesn't reveal leakage signals
 
+**Mandatory backtest audit gate (quant projects):**
+When verifying any phase that produces backtest metrics, the verifier MUST:
+1. Load `references/backtest-audit-pipeline.md`
+2. Run or request all 8 pipeline checks (overlap, normalization, lookahead, costs, DSR, temporal CV, complexity, sample size)
+3. A phase CANNOT pass verification if the backtest audit verdict is FAIL or REJECT
+4. Spawn `nr-quant-auditor` in `BACKTEST_AUDIT` mode for automated checking:
+   ```
+   Task(subagent_type="nr-quant-auditor", description="Backtest audit for Phase [N]",
+     prompt="Run BACKTEST_AUDIT on Phase [N] results. Check all 8 pipeline items.
+   Write report to .planning/audit/BACKTEST-AUDIT-phase-[N].md")
+   ```
+5. Include audit report summary in VERIFICATION.md
+
+**Production reality verification (quant Phase 7+):**
+Load `references/production-reality.md` and verify against the 27-item Production Readiness Checklist.
+Load `references/overfitting-diagnostics.md` and verify DSR, PBO have been computed.
+
 **Enhanced quant verification (with deep references):**
 - Load `references/strategy-metrics.md` — verify metric implementations match correct formulas:
   - Sharpe ratio uses sqrt(252) annualization (not 365) and ideally Newey-West adjustment
@@ -86,6 +103,31 @@ When quant is detected:
   - Audit score < 70 → forces FAIL (CRITICAL violations must be resolved)
 - **Statistical significance gate:** Claimed Sharpe improvements must include confidence intervals. If multiple strategies were tested, apply Deflated Sharpe Ratio to adjust for selection bias.
 - **Transaction cost gate:** Any P&L metric reported without transaction costs triggers WARNING. Net Sharpe must be reported alongside gross Sharpe.
+- **Overfitting diagnostics gate:** Load `references/overfitting-diagnostics.md`. For strategy evaluation phases:
+  - Verify DSR computed and reported (probability of genuine skill)
+  - Verify PBO computed if >10 strategy configurations tested
+  - Verify WFE in healthy range (0.3-0.7 ideal, 0.3-0.9 acceptable)
+  - Verify parameter sensitivity analysis performed
+  - If DSR < 0.05 or PBO > 0.50 → FAIL (likely overfit)
+- **Production reality gate:** Load `references/production-reality.md`. For production phases:
+  - Verify execution costs use realistic model (not flat bps)
+  - Verify capacity estimation performed
+  - Verify fill rate modeled (not 100% assumed)
+  - Verify kill switches and automated risk limits exist
+  - If no cost model → WARNING. If strategy profitable only under optimistic costs → FAIL.
+- **Drift monitoring gate:** Load `references/live-drift-detection.md`. For deployment phases:
+  - Verify rolling performance monitors implemented
+  - Verify distribution drift tests exist (KS, PSI)
+  - Verify alert system with tiered responses
+  - If no monitoring → WARNING for research phase, FAIL for production phase.
+- **Alpha decay awareness:** Load `references/alpha-decay-patterns.md`. Check:
+  - Is the strategy based on published factors? If so, are decay timelines assessed?
+  - Is signal IC tracked with half-life estimation?
+  - Are decay-resistant design principles followed?
+- **Case study cross-reference:** Load `references/production-failure-case-studies.md`. Check:
+  - Does the implementation match any documented failure pattern?
+  - Are the fixes from matching cases applied?
+  - Special attention to Cases 1 (alternating splits), 4 (massive overfitting), 6 (fill rate illusion)
 
 **Web Development** — activate when CONTEXT.md contains: React, Vue, Angular, CSS, Tailwind, component, layout, responsive, LCP, CLS, INP, hydration, SSR, SSG, Next.js, Nuxt, webpack, Vite, bundle, SPA, accessibility, WCAG, frontend.
 

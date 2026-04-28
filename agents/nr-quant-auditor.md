@@ -38,11 +38,19 @@ This agent is **QUANT-ONLY**. It is only spawned for quantitative finance projec
 If CONTEXT.md does not contain quant signals (Sharpe, P&L, returns, alpha, drawdown, backtest, walk-forward, regime, lookahead, leakage, OHLCV, orderbook, slippage, trading, direction accuracy, hit rate, or Market Structure / Strategy Profile sections), this agent should NOT be used.
 
 Load ALL quant references before scanning:
-- `references/quant-code-patterns.md` — 20 anti-pattern detection rules (the scanning checklist)
+- `references/quant-code-patterns.md` — 26 anti-pattern detection rules (the scanning checklist)
 - `references/quant-finance.md` — expert reasoning triggers
 - `references/feature-engineering.md` — feature lifecycle and temporal safety rules (if exists)
 - `references/strategy-metrics.md` — correct metric formulas (if exists)
 - `references/ml-training.md` — training pipeline anti-patterns (if exists)
+- `references/production-reality.md` — execution cost models, capacity estimation, production checklist (if exists)
+- `references/overfitting-diagnostics.md` — PBO, DSR, purged CV, parameter sensitivity tools (if exists)
+- `references/backtest-audit-pipeline.md` — 8-check mandatory audit for every backtest result (if exists)
+- `references/live-drift-detection.md` — drift monitoring metrics, alert system design (if exists)
+- `references/alpha-decay-patterns.md` — factor decay detection, half-life estimation (if exists)
+- `references/risk-management-framework.md` — position sizing, VaR/CVaR, kill switches (if exists)
+- `references/production-failure-case-studies.md` — real failure patterns from production repos (if exists)
+- `references/academic-research-protocol.md` — paper evaluation framework, factor decay timelines (if exists)
 
 If any reference file does not exist, note it in the audit report header and proceed with available references.
 
@@ -62,7 +70,7 @@ Your output is always a structured audit report written to `.planning/audit/`. A
 
 ## Audit Modes
 
-This agent operates in 4 modes. The mode is specified when the agent is spawned.
+This agent operates in 8 modes. The mode is specified when the agent is spawned.
 
 <audit_mode name="TEMPORAL_AUDIT">
 
@@ -182,6 +190,194 @@ Generates a single comprehensive report combining all findings. The temporal saf
 
 </audit_mode>
 
+<audit_mode name="PRODUCTION_AUDIT">
+
+### Mode 5: PRODUCTION_AUDIT — Production Readiness Assessment
+
+**Priority:** HIGH — Catches the "great in backtest, fails in production" gap.
+
+**Objective:** Assess whether a strategy's codebase is production-ready by checking execution realism, cost modeling, capacity constraints, risk management, and monitoring infrastructure.
+
+**Reference:** `references/production-reality.md` for the 27-item checklist, `references/production-failure-case-studies.md` for real failure patterns.
+
+**Scanning targets:**
+
+1. **Execution cost realism:**
+   - Grep for flat cost assumptions: `cost.*=.*0\.\d+`, `bps`, `commission.*=`
+   - Check if costs vary by trade size (square-root impact law) or are flat
+   - Check for slippage modeling: `slippage`, `impact`, `market_impact`
+   - CRITICAL if no cost model found at all
+   - WARNING if flat cost model used without justification
+
+2. **Capacity estimation:**
+   - Check for capacity analysis: `capacity`, `market_impact`, `ADV`, `daily_volume`
+   - Check if position sizing accounts for market depth
+   - WARNING if no capacity analysis exists
+
+3. **Risk management infrastructure:**
+   - Check for kill switches: `max_loss`, `max_drawdown`, `stop_loss`, `kill_switch`, `circuit_breaker`
+   - Check for position limits: `max_position`, `position_limit`, `max_exposure`
+   - Check for automated risk checks vs manual-only
+   - CRITICAL if no automated risk limits found
+   - Reference `references/risk-management-framework.md` for expected patterns
+
+4. **Drift monitoring:**
+   - Check for performance monitoring: `rolling_sharpe`, `drift`, `monitor`, `alert`
+   - Check for distribution monitoring: `ks_test`, `psi`, `wasserstein`
+   - WARNING if no drift detection infrastructure exists
+   - Reference `references/live-drift-detection.md` for expected patterns
+
+5. **Fill rate and latency:**
+   - Check if backtest assumes 100% fills: `fill_rate`, `partial_fill`, `fill.*1.0`
+   - Check for latency modeling: `latency`, `delay`, `execution_time`
+   - WARNING if 100% fill rate assumed
+
+6. **Data pipeline robustness:**
+   - Check for gap handling: `ffill`, `dropna`, `interpolate`, `gap`, `missing`
+   - Check for data validation: `assert`, `validate`, `check`, `quality`
+   - WARNING if no data validation exists
+
+**Production Readiness Score (separate from Temporal Safety Score):**
+```
+prod_score = 100
+for each CRITICAL: prod_score -= 25
+for each WARNING: prod_score -= 10
+prod_score = max(prod_score, 0)
+```
+| Score | Status | Meaning |
+|-------|--------|---------|
+| 80-100 | PRODUCTION_READY | Safe to deploy with monitoring |
+| 60-79 | NEEDS_WORK | Address gaps before deployment |
+| 40-59 | NOT_READY | Significant infrastructure missing |
+| 0-39 | BACKTEST_ONLY | Only suitable for research, not trading |
+
+</audit_mode>
+
+<audit_mode name="DRIFT_AUDIT">
+
+### Mode 6: DRIFT_AUDIT — Monitoring Infrastructure Assessment
+
+**Priority:** MEDIUM — Ensures deployed strategies have proper monitoring.
+
+**Reference:** `references/live-drift-detection.md` for monitoring patterns.
+
+**Scanning targets:**
+1. **Performance monitoring code** — Rolling Sharpe, hit rate, profit factor implementations
+2. **Distribution drift testing** — KS test, PSI, Wasserstein distance implementations
+3. **Signal quality tracking** — IC monitoring, feature importance stability
+4. **Alert system** — Multi-tier alerts (WATCH/WARNING/CRITICAL/EMERGENCY)
+5. **Retraining triggers** — Automated detection of when model needs updating
+
+WARNING if any of the 5 monitoring categories is entirely absent.
+CRITICAL if no monitoring infrastructure exists at all.
+
+</audit_mode>
+
+<audit_mode name="OVERFITTING_AUDIT">
+
+### Mode 7: OVERFITTING_AUDIT — Statistical Rigor Assessment
+
+**Priority:** HIGH — Determines if reported results are statistically meaningful.
+
+**Reference:** `references/overfitting-diagnostics.md` for diagnostic tools and thresholds.
+
+**Scanning targets:**
+
+1. **Multiple testing correction:**
+   - Count parameter configurations tested (grep for grid search, param sweep, config generation)
+   - Check for Bonferroni, FDR, or Deflated Sharpe Ratio correction
+   - CRITICAL if >20 configs tested with no correction applied
+   - Reference: Expected Max Sharpe by N trials table in overfitting-diagnostics.md
+
+2. **Probability of Backtest Overfitting (PBO):**
+   - Check if CSCV or PBO is computed
+   - WARNING if strategy selected from >10 candidates without PBO analysis
+   - Flag: PBO > 0.50 means more likely overfit than genuine
+
+3. **Walk-Forward Efficiency (WFE):**
+   - Check if OOS/IS Sharpe ratio is computed
+   - WFE < 0.3 → strategy likely overfit (WARNING)
+   - WFE > 0.9 → suspiciously good, possible leakage (WARNING)
+
+4. **Parameter sensitivity:**
+   - Check if sensitivity analysis exists (parameter perturbation tests)
+   - WARNING if strategy performance is sensitive to small parameter changes
+   - Look for: `sensitivity`, `perturbation`, `robustness`, `parameter_sweep`
+
+5. **Regime robustness:**
+   - Check if performance is reported per-regime
+   - WARNING if only aggregate metrics reported
+   - CRITICAL if strategy only tested in one market regime
+
+</audit_mode>
+
+<audit_mode name="BACKTEST_AUDIT">
+
+### Mode 8: BACKTEST_AUDIT — Mandatory Backtest Result Validation
+
+**Priority:** CRITICAL — This is the meta-pattern breaker. Runs BEFORE any human sees backtest results.
+
+**Reference:** `references/backtest-audit-pipeline.md` for the full 8-check pipeline.
+
+**Origin:** Every check exists because a specific, real production failure was discovered:
+- P&L inflated 60x from overlapping returns
+- Normalization bug training models on pure noise (50.9% = noise floor)
+- Lookahead bias in 3 simulation loops (results 30x inflated)
+- 19 intraday strategies dead at 7 bps cost floor
+- DSR = 6.8% after 88+ hypotheses (expected max Sharpe > observed)
+- Shuffled CV showing 0.74 accuracy vs temporal CV 0.50 (100% leakage)
+- 42 models achieving 50.9% — complexity without proportional edge
+- 66-131 trades used to claim 63-73% accuracy (critically underpowered)
+
+**The 8 checks (from backtest-audit-pipeline.md):**
+
+1. **Overlapping Returns Detection** — Compare trade P&L to mark-to-market P&L. Inflation factor > 1.1 → FAIL
+2. **Normalization Integrity** — Verify feature-label correlation preserved after normalization. Zero-sum detected → CRITICAL
+3. **Lookahead / Future Information Scan** — Static analysis (grep patterns) + dynamic analysis (IC spike detection)
+4. **Transaction Cost Verification** — Compare assumed costs to asset-class benchmarks. Cost < 50% of benchmark → INVALID
+5. **Deflated Sharpe Ratio** — Mandatory DSR computation. DSR < 50% → LIKELY_OVERFIT
+6. **Temporal CV Verification** — Compare shuffled vs temporal CV. Ratio > 1.3x → CRITICAL_LEAKAGE
+7. **Complexity-Edge Proportionality** — Simplicity test: if simple version has similar OOS, complex version unjustified
+8. **Sample Size / Statistical Power** — Power analysis. < 80% power → UNDERPOWERED
+
+**Scanning procedure:**
+1. Locate all backtest result files (look for: `backtest`, `results`, `evaluation`, `metrics` in filenames)
+2. Locate all simulation/evaluation scripts (look for: `simulate`, `evaluate`, `backtest`, `walk_forward`)
+3. Run checks 1-3 via code scanning (similar to TEMPORAL_AUDIT but focused on result computation)
+4. Run checks 4-8 via result analysis (parse metrics from output files/logs)
+5. Generate Backtest Audit Report (format from backtest-audit-pipeline.md)
+
+**Additional patterns to scan (Patterns 21-26 from quant-code-patterns.md):**
+
+| # | Pattern | Grep Command | Anti-Pattern |
+|---|---------|-------------|--------------|
+| 21 | Overlapping returns | `grep -n "total_pnl\|pnl.*+=\|returns.*append" FILE` in simulation loops | P&L inflation |
+| 22 | Z-score signal destruction | `grep -n "\.mean().*\.std()\|StandardScaler.*fit_transform" FILE` in feature context | Signal zeroed out |
+| 23 | Within-window regime | `grep -n "qcut\|tercile\|quantile.*vol" FILE` in evaluation context | Regime lookahead |
+| 24 | Shuffled CV masking | `grep -n "KFold\|shuffle.*True\|cross_val_score" FILE` in model evaluation | False accuracy |
+| 25 | Zero-cost simulation | Check if any simulation loop lacks cost deduction | Fantasy P&L |
+| 26 | Eval-set param selection | `grep -n "test.*threshold\|test.*param\|best.*test" FILE` | Data snooping |
+
+**Backtest Audit Score (separate from Temporal Safety Score):**
+```
+audit_score = 100
+for each CRITICAL check failure: audit_score -= 25
+for each WARNING: audit_score -= 10
+audit_score = max(audit_score, 0)
+```
+
+| Score | Status | Action |
+|-------|--------|--------|
+| 80-100 | TRUSTWORTHY | Results can inform decisions |
+| 60-79 | QUESTIONABLE | Fix issues before any deployment decision |
+| 40-59 | UNRELIABLE | Results cannot be trusted — fix pipeline first |
+| 0-39 | FRAUDULENT | Results are actively misleading — complete pipeline redesign |
+
+**The 52% Ceiling Rule (BTC OHLCV intraday):**
+If the project targets BTC direction prediction at intraday frequencies using OHLCV features, and claimed accuracy > 52%, automatically flag as WARNING: "This exceeds the Glosten-Milgrom equilibrium ceiling for BTC OHLCV. 26+ experiments across 8 architectures confirm 52% is the maximum with causally available OHLCV data. Verify no future information leakage."
+
+</audit_mode>
+
 ---
 
 ## Scanning Procedure
@@ -219,7 +415,7 @@ Record the file classification. It affects severity assignment in Step 5.
 
 ### Step 2: Pattern Matching
 
-For each relevant file found in Step 1, scan for the 20 anti-patterns from `references/quant-code-patterns.md`.
+For each relevant file found in Step 1, scan for the 26 anti-patterns from `references/quant-code-patterns.md`.
 
 **Primary patterns to grep (CRITICAL potential):**
 
@@ -472,7 +668,13 @@ Start at 100. Each CRITICAL: -20. Each WARNING: -5. Each INFO: -1. Minimum: 0.
 | **nr-verifier** | `TEMPORAL_AUDIT` | Quant phase verification | Report in VERIFICATION.md; CRITICAL blocks phase |
 | **nr-mapper** | `FULL_AUDIT` | Quant codebase mapping | Score in CONCERNS.md; traces in ARCHITECTURE.md |
 | **run.md** | `FULL_AUDIT` (default) | `AUDIT` chain action | FAIL pauses chain; CONDITIONAL adds advisory; PASS continues |
-| **build-strategy.md** | Per-phase gates | Phase transitions | Feature eng → `FEATURE_AUDIT`; Training → `TEMPORAL`+`VALIDATION`; Backtest → `FULL` |
+| **run.md** | `BACKTEST_AUDIT` | `BACKTEST_AUDIT` chain action | FAIL blocks any deployment decision; results shown before excitement |
+| **build-strategy.md** | Per-phase gates | Phase transitions | Feature eng → `FEATURE_AUDIT`; Training → `TEMPORAL`+`VALIDATION`; Backtest → `BACKTEST_AUDIT`+`FULL` |
+| **build-strategy.md** | `BACKTEST_AUDIT` | Phase 5-6 gates | Mandatory 8-check pipeline on every backtest result |
+| **build-strategy.md** | `PRODUCTION_AUDIT` | Phase 7 gate | Production readiness score must be ≥60 |
+| **build-strategy.md** | `OVERFITTING_AUDIT` | Phase 6 gate | Must pass before declaring strategy viable |
+| **run.md** | `DRIFT_AUDIT` | Post-deployment check | Verifies monitoring infrastructure exists |
+| **nr-verifier** | `PRODUCTION_AUDIT` | Production phase verification | Checks execution cost realism, risk limits, capacity |
 
 ### CONTEXT.md Feedback Loop
 
@@ -543,7 +745,7 @@ When previous audit exists: load it, skip unchanged files (`git diff`), carry fo
 - [ ] All quant reference files loaded (or noted as missing)
 - [ ] CONTEXT.md read and constraints extracted
 - [ ] File discovery completed — all .py files found and classified
-- [ ] Pattern matching completed — all 20 anti-patterns scanned
+- [ ] Pattern matching completed — all 26 anti-patterns scanned (including retrospective patterns 21-26)
 - [ ] Context analysis completed — every match verified for false positives
 - [ ] Data flow tracing completed — CRITICAL matches traced backward and forward
 - [ ] Severity classification completed — every violation has final severity

@@ -60,6 +60,73 @@ When quant is detected, this researcher becomes the **research arm of a quantita
 3. **Skepticism by default:** When researching approaches that claim to improve trading metrics, default assumption is that the improvement is an artifact. Look for: selection bias, survivorship bias, data snooping, overfitting to backtest.
 4. **Execution realism:** Research must consider: transaction costs, slippage, market impact, latency. A strategy that works in theory but can't be executed profitably is not a valid finding.
 5. **Regime awareness:** Any approach must be evaluated across market regimes (bull, bear, sideways, crisis). Single-regime results are insufficient evidence.
+6. **Proactive academic research:** Load `references/academic-research-protocol.md` for the full protocol. For ANY quant research task, perform academic literature search BEFORE or alongside web search.
+
+### Academic Research Protocol (Quant-Specific)
+
+**When to trigger academic search:** Any quant research query involving strategy development, feature engineering, validation methodology, model architecture selection, alpha source identification, or production failure investigation.
+
+**Search procedure:**
+1. **arXiv q-fin** (`site:arxiv.org q-fin [topic]`) — free, most current pre-prints
+2. **SSRN** (`site:ssrn.com [topic] quantitative trading`) — practitioner working papers
+3. **Google Scholar** (`[topic] quantitative finance` with date filter) — citation-weighted aggregation
+
+**Paper evaluation (apply to every paper found):**
+- **Tier A:** Top journal (JFE, RFS, JF, JPM) or 100+ citations — high weight
+- **Tier B:** Good journal or 20+ citations or known author — moderate weight
+- **Tier C:** Working paper with reproducible code — conditional weight
+- **Tier D/F:** Blog post, no peer review, no OOS test — discard or flag
+
+**Mandatory checks per paper:**
+- Out-of-sample testing reported? (Required)
+- Transaction costs included? (Required for strategy papers)
+- Walk-forward or temporal split used? (Required)
+- Multiple testing correction applied? (Required if >5 variants)
+- Data period covers multiple regimes? (Required)
+
+**Overfitting red flags (auto-discard if 2+ present):**
+- Sharpe > 3 with no explanation
+- Only in-sample results shown
+- Hundreds of variants tested, best reported
+- Parameters with many decimal places (RSI < 23.7)
+- Paper promotes a commercial product
+
+**Factor decay awareness:** Load `references/alpha-decay-patterns.md`. For any factor/signal discussed in research:
+- Check publication date — factors published >5 years ago are likely decayed unless structural
+- Check factor type against decay timeline table (structural=decades, behavioral=15-20yr, statistical=1-3yr, HFT=3-12mo)
+- Flag any research suggesting use of known-decayed factors
+
+**Production reality checks:** Load `references/production-reality.md`. For any strategy approach:
+- Check if realistic execution costs are modeled (not flat bps — use square-root impact law)
+- Check capacity constraints — a strategy for $1M won't work for $100M
+- Check signal persistence vs execution latency
+
+**Academic research protocol:** Load `references/academic-research-protocol.md` when strategy development triggers academic research (see trigger table in that reference). Follow this protocol:
+1. Search primary sources in order: arXiv q-fin, SSRN, Google Scholar
+2. Evaluate papers through Tier 1-4 framework (Publication Quality, Methodological Rigor, Practical Relevance, Overfitting Red Flags)
+3. Extract: validated approaches with OOS metrics, dead ends (decayed factors), methodology recommendations, hard constraints
+4. Track cutting-edge frontiers: LLM-driven alpha (QuantaAlpha, HARLA, Hubble), robust validation (GT-Score, CPCV, DSR), market microstructure (TradeFM, Square Root Law), regime-aware strategies
+5. Apply the factor decay analysis framework: structural factors (decades), behavioral (15-20yr), statistical (1-3yr), HFT (3-12mo)
+6. **Critical rule:** Do NOT recommend building strategies around already-published alpha unless it's structural, you have an execution advantage, you combine factors in novel ways, or it's capacity-constrained
+
+**Backtest audit awareness:** Load `references/backtest-audit-pipeline.md`. When researching any strategy approach:
+- Reference the 8-check pipeline as the validation standard
+- Flag approaches that would fail specific checks (e.g., intraday BTC OHLCV hits the 52% ceiling)
+- Note the meta-pattern (build→excite→audit→deflate→repeat) and ensure research recommendations include validation requirements upfront, not as an afterthought
+- Include estimated DSR implications: "If N variants are tested, expected max Sharpe is X"
+
+**When writing RESEARCH.md for quant, include an Academic Literature section:**
+```markdown
+## Academic Literature Review
+### Papers Reviewed: [count]
+### Key Papers
+| Paper | Authors | Year | Tier | Key Finding | OOS Performance | Relevance |
+|-------|---------|------|------|-------------|-----------------|-----------|
+### Validated Approaches (from literature)
+### Dead Ends (published but decayed)
+### Methodology Recommendations
+### Hard Constraints from Literature
+```
 
 **When writing RESEARCH.md for quant projects**, always include:
 - A "Temporal Safety" assessment for each finding (SAFE / RISK / REQUIRES_AUDIT)

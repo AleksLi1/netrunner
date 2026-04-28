@@ -166,6 +166,89 @@ When evaluating strategy risk, maximum drawdown, or portfolio-level risk metrics
 
 **Expert intuition:** Drawdown analysis is where backtests are most misleading. In a backtest, you know the strategy recovers because you can see the future. In live trading, during a drawdown, you don't know if it's a temporary dip or a permanent regime break. The question isn't "what was the max drawdown?" but "during the drawdown, would I have had enough conviction to stay in?" If the answer is no, the strategy is unsuitable regardless of its long-term Sharpe.
 
+### Trigger: Backtest Shows Excellent Results
+
+When a backtest produces attractive metrics (Sharpe > 1.5, high hit rate, smooth equity curve):
+
+**Reasoning chain:**
+1. **Apply overfitting diagnostics immediately.** Load `references/overfitting-diagnostics.md`. Compute DSR, PBO, WFE before celebrating.
+2. **Count configurations tested.** How many parameter combinations, feature sets, or model architectures were evaluated? With N>20, apply multiple testing correction.
+3. **Check production reality gap.** Load `references/production-reality.md`. Are execution costs realistic? Is capacity sufficient? Is fill rate modeled?
+4. **Check against case studies.** Load `references/production-failure-case-studies.md`. Does this match any known failure pattern? Cases 1-5 all showed excellent backtests.
+5. **Demand regime decomposition.** Break performance by regime (bull/bear/sideways/crisis). If >80% of P&L comes from one regime, it's a regime-specific strategy, not a universal one.
+6. **Check alpha source viability.** Load `references/alpha-decay-patterns.md`. Is the alpha source structural or statistical? If based on published factor, check decay timeline.
+
+**Expert intuition:** In 15 years I have NEVER seen a Sharpe > 3 strategy survive first contact with production. The backtest-to-live degradation ratio for most strategies is 3:1 to 5:1. A backtest Sharpe of 2.0 typically produces live Sharpe of 0.4-0.7. Plan accordingly.
+
+### Trigger: Strategy Deployed to Production
+
+When transitioning from backtest to live trading:
+
+**Reasoning chain:**
+1. **Paper trade first.** Minimum 2 weeks paper trading with realistic fill model before real capital.
+2. **Validate cost assumptions.** Compare first 100 live fills against backtest assumptions. If costs are >50% higher than modeled, halt and recalibrate.
+3. **Set kill switches before going live.** Load `references/risk-management-framework.md`. Automated limits: max daily loss, max drawdown, max position size, max trades/day.
+4. **Deploy drift monitoring.** Load `references/live-drift-detection.md`. Rolling Sharpe, IC, distribution tests from day 1.
+5. **Start small.** 10% of target size for first month. Scale up only after live metrics confirm backtest expectations (within 50% tolerance).
+6. **Document production baseline.** Record: realized costs, fill rates, latency, slippage. This becomes the reference for drift detection.
+
+**Expert intuition:** The first week of live trading tells you more about a strategy than 10 years of backtest. Watch for: costs higher than expected, fills worse than modeled, unexpected position management issues, data quality differences between backtest and live feeds.
+
+### Trigger: Production Strategy Underperforming
+
+When a live strategy is losing money or underperforming its backtest trajectory:
+
+**Reasoning chain:**
+1. **Classify the drift type.** Load `references/live-drift-detection.md`. Is it alpha decay? Regime shift? Execution drift? Or statistical noise?
+2. **Check if it's noise first.** Strategy P&L has high variance. A 2-week drawdown might be normal. Compute: is the current drawdown within the 95% confidence interval of expected drawdowns given the strategy's Sharpe?
+3. **If not noise, check execution.** Compare live fill rates, costs, slippage to production baseline. If execution has degraded, fix execution — don't retrain the model.
+4. **If execution is fine, check signal quality.** Rolling IC trending down? Feature importance shifting? This suggests alpha decay or regime shift.
+5. **If alpha is decaying, consult decay playbook.** Load `references/alpha-decay-patterns.md`. IC down 25% → monitor. IC down 50% → investigate. IC crossed zero → halt.
+6. **Check case studies for pattern matching.** Load `references/production-failure-case-studies.md`. Does the failure signature match a documented case?
+7. **Decision: retrain, adapt, or kill.** Performance drift only → retrain. Signal quality drift → new features needed. Regime shift → check if strategy was regime-specific. Multiple drift types → structural break, consider killing.
+
+**Expert intuition:** The hardest decision in live trading is distinguishing a temporary drawdown from a permanent alpha death. The data will always be ambiguous. Use pre-committed rules: "If metric X breaches threshold Y for Z periods, take action W." Deciding in the moment under drawdown stress leads to bad decisions.
+
+### Trigger: Complexity Creep (The Rube Goldberg Detector)
+
+When the project is adding layers of complexity to a strategy (more models, more filters, more sizing rules, more overlays):
+
+**Reasoning chain:**
+1. **Simplicity test first.** What does the simplest possible version of this strategy achieve in OOS? If a trend MA crossover gets Sharpe 1.2 and the 42-model ensemble gets Sharpe 0.4, the complexity is HURTING, not helping.
+2. **Ablation audit.** For each component added, what is its ISOLATED OOS contribution? If removing a component doesn't meaningfully change OOS performance, it's dead weight adding fragility.
+3. **Parameter count audit.** How many free parameters does the full system have? Each parameter is a degree of freedom for overfitting. Rule of thumb: need 10-20x more OOS observations than parameters.
+4. **Bug surface area.** Each additional component is a potential source of bugs (normalization errors, lookahead, off-by-one). The probability of at least one bug increases exponentially with component count.
+5. **The 50.9% question.** If individual models predict at ~51%, no amount of ensemble engineering will produce 65% — you're rearranging noise. Complexity must come AFTER establishing a genuine edge, not as a substitute for one.
+
+**Expert intuition:** I have watched teams spend months building systems with 42 models, rolling conviction, conformal inference, SPRT validation, session sizing, drawdown limits, circuit breakers, dual allocators, and regime detection — all sitting on top of models predicting at 50.9%. A simple moving average crossover outperformed the entire edifice. Complexity is a form of denial — "if I add just one more layer, it'll work." It won't. Start simple. Stay simple. Only add complexity that DEMONSTRABLY improves OOS performance via ablation.
+
+### Trigger: The Build-Excite-Audit-Deflate Cycle
+
+When the project has a history of "promising" results that turn out to be flawed on closer inspection:
+
+**Reasoning chain:**
+1. **Pattern recognition.** Has this happened before in this project? If the CONTEXT.md shows 3+ instances of "result looked promising → audit revealed flaw," this IS the problem. The issue isn't the strategy — it's the research infrastructure.
+2. **Mandate audit-first.** From now on, the backtest audit pipeline (`references/backtest-audit-pipeline.md`) runs BEFORE anyone sees the results. No exceptions. No "let me just check one thing first." The audit produces the first interpretation.
+3. **Prevent excitement-driven development.** The most expensive decision in quant is "this looks promising, let's invest 2 weeks building on top of it" — then discovering the foundation was flawed. The audit pipeline catches the flaw in minutes, not weeks.
+4. **Fix infrastructure before strategies.** If the backtesting pipeline has produced fraudulent results before (overlapping returns, normalization bugs, lookahead bias), fixing the pipeline is more valuable than finding a new strategy. A perfect strategy evaluated with a broken pipeline looks the same as a broken strategy.
+5. **Erosion of trust.** After enough fraudulent backtests, it becomes impossible to know if a genuine edge exists. The only antidote: a pipeline that has NEVER produced a false positive because the audit catches every flaw before commitment.
+
+**Expert intuition:** The most expensive number in quantitative finance is NOT a losing trade. It's a wrong backtest. A losing trade costs money proportional to position size. A wrong backtest costs weeks of development time, deploys capital based on false premises, and erodes the researcher's ability to trust any future result. After you've been fooled by your own backtests 5 times, you second-guess everything — including the rare genuine edge. Fix the measurement instrument first.
+
+### Trigger: Intraday Strategy on Crypto with OHLCV Only
+
+When the project targets BTC (or any major crypto) direction prediction at intraday frequencies using only OHLCV data:
+
+**Reasoning chain:**
+1. **Apply the 52% ceiling rule.** 26+ experiments across 8 architectures — transformers, LSTMs, LightGBM, XGBoost, CNNs, TCN, linear, ensemble — all converge to ~52% on BTC OHLCV at intraday frequencies. This is NOT a model problem. It's a data problem.
+2. **Glosten-Milgrom equilibrium.** Market makers price in public information (OHLCV). The competitive equilibrium leaves ~0 edge for direction prediction. This is well-established theory confirmed empirically.
+3. **Permutation entropy > 0.90.** BTC is near-Brownian at intraday frequencies for 96% of trading hours. The signal exists but it's below the noise floor for practical exploitation.
+4. **The leak test.** Leaked features (centered CVD, global normalization) reach 71.4% accuracy — proving signal EXISTS in the data but cannot be accessed causally. If someone claims >52% with "causal" features, they almost certainly have a leak.
+5. **The dead zone.** Even if you find a small edge (1-5 bps per trade), transaction costs on testnet (7 bps RT) or mainnet (4.7 bps RT) consume it entirely. The dead zone between HFT (<1s) and daily+ is real for retail.
+6. **What to do instead:** (a) Move to daily+ timeframe for trend-following, (b) use alternative data (order flow, sentiment, on-chain), (c) multi-asset diversification, (d) execution quality optimization.
+
+**Expert intuition:** This is the hardest pill in quant: some data simply doesn't contain exploitable signal at your target frequency. Spending months trying to break through a physics ceiling is the most common waste of effort in retail quant. Accept it early. Redirect effort to where edges actually exist.
+
 ## Common Pitfall Categories
 
 These activate deeper investigation when detected:
@@ -221,3 +304,24 @@ When quant finance reasoning is active:
 - **Avenues** must address: realistic execution, regime robustness, and statistical significance
 - **Verification** includes: "Was the validation framework sound?" not just "Did the test pass?"
 - **Constraint enforcement** treats temporal contamination as a HARD constraint violation — same severity as a known bug
+- **Production reality gate** adds: "Would this survive first contact with live markets? Are costs, capacity, and risk limits realistic?"
+- **Overfitting gate** adds: "How many configurations were tested? Has DSR/PBO been applied? Is WFE in healthy range?"
+- **Academic research gate** adds: "What does published research say about this approach? Is the alpha source still viable post-publication?"
+
+### Deep Reference Loading
+
+Load these references conditionally based on the active reasoning trigger:
+
+| Trigger | References to Load |
+|---------|-------------------|
+| Suspiciously Good Results | `overfitting-diagnostics.md`, `backtest-audit-pipeline.md`, `production-failure-case-studies.md` |
+| Backtest Shows Excellent Results | `backtest-audit-pipeline.md`, `overfitting-diagnostics.md`, `production-reality.md`, `alpha-decay-patterns.md` |
+| Strategy Deployed to Production | `production-reality.md`, `risk-management-framework.md`, `live-drift-detection.md` |
+| Production Strategy Underperforming | `live-drift-detection.md`, `alpha-decay-patterns.md`, `production-failure-case-studies.md` |
+| Feature Engineering Discussion | `feature-engineering.md`, `academic-research-protocol.md` |
+| Comparing Multiple Models | `overfitting-diagnostics.md`, `academic-research-protocol.md` |
+| "What Should I Try Next?" | `academic-research-protocol.md`, `alpha-decay-patterns.md` |
+| Drawdown Analysis | `risk-management-framework.md`, `live-drift-detection.md` |
+| Complexity Creep | `backtest-audit-pipeline.md` (check 7: complexity proportionality) |
+| Build-Excite-Audit-Deflate Cycle | `backtest-audit-pipeline.md` (all 8 checks), `overfitting-diagnostics.md` |
+| Intraday Crypto OHLCV | `backtest-audit-pipeline.md` (52% ceiling rule), `production-reality.md` (cost benchmarks) |

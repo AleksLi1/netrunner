@@ -15,7 +15,7 @@ This is the gold standard workflow — no shortcuts, no skipped phases.
 
 <prerequisites>
 - Quant persona must be active (2+ detection signals in CONTEXT.md)
-- References loaded: quant-finance.md, strategy-metrics.md, feature-engineering.md, ml-training.md, quant-code-patterns.md, research-integration.md
+- References loaded: quant-finance.md, strategy-metrics.md, feature-engineering.md, ml-training.md, quant-code-patterns.md, research-integration.md, academic-research-protocol.md, production-reality.md, overfitting-diagnostics.md, backtest-audit-pipeline.md, live-drift-detection.md, alpha-decay-patterns.md, risk-management-framework.md, production-failure-case-studies.md
 </prerequisites>
 
 <research_corpus_protocol>
@@ -218,10 +218,29 @@ Agent(team_name="nr-research-strategy", name="researcher-academic", subagent_typ
   Asset class: [asset class]
   Frequency: [frequency]
 
-  Find:
-  1. Academic papers on this type of edge (last 10 years)
-  2. Theoretical foundations for why this edge exists
-  3. Known decay patterns from academic research
+  MANDATORY: Follow the Academic Research Protocol from references/academic-research-protocol.md.
+
+  Search procedure:
+  1. arXiv q-fin: site:arxiv.org q-fin [strategy type] [asset class]
+  2. SSRN: site:ssrn.com [strategy type] quantitative trading
+  3. Google Scholar: [strategy type] [asset class] out-of-sample [current year - 2]
+
+  For each paper found, evaluate through Tier 1-4 framework:
+  - Tier 1: Publication quality (A/B/C/D/F)
+  - Tier 2: Methodological rigor (OOS test? Transaction costs? Walk-forward?)
+  - Tier 3: Practical relevance (asset class match? capacity? execution assumptions?)
+  - Tier 4: Overfitting red flags (Sharpe > 3? Only IS results? Many variants tested?)
+
+  Check factor decay timelines from references/alpha-decay-patterns.md.
+  Flag any strategy based on known-decayed factors.
+
+  Output format:
+  ## Academic Literature Review
+  ### Key Papers (table with: Paper, Authors, Year, Tier, Key Finding, OOS Performance, Relevance)
+  ### Validated Approaches
+  ### Dead Ends (published but decayed)
+  ### Methodology Recommendations
+  ### Hard Constraints from Literature
 
   Write to: .planning/strategy/RESEARCH-ACADEMIC.md
   Mark task completed when done.")
@@ -776,6 +795,31 @@ for regime in ["bull", "bear", "sideways"]:
 - Return to Phase 3 (FEATURES) to re-examine feature pipeline
 - Do NOT try more complex models to force-fit noise
 
+**Additional Gate: BACKTEST_AUDIT (Mandatory)**
+
+Before proceeding to Phase 6, the backtest audit pipeline MUST run on Phase 5 model results. This catches the build-excite-audit-deflate cycle early.
+
+```
+Task(subagent_type="nr-quant-auditor", description="Backtest audit — Phase 5 model results",
+  prompt="Run BACKTEST_AUDIT on Phase 5 model evaluation results.
+  Reference: references/backtest-audit-pipeline.md
+  Check all 8 items:
+  1. Overlapping returns detection
+  2. Normalization integrity
+  3. Lookahead / future information scan
+  4. Transaction cost verification (use asset-class benchmarks)
+  5. Deflated Sharpe Ratio (count ALL hypotheses tested across Phases 1-5)
+  6. Temporal CV verification (shuffled vs temporal comparison)
+  7. Complexity-edge proportionality (compare to simplest baseline)
+  8. Sample size / statistical power (enough trades for claimed accuracy?)
+  Write to .planning/audit/BACKTEST-AUDIT-phase5.md")
+```
+- PASS: All 8 checks pass → proceed to Phase 6
+- WARNING: Some checks have warnings → proceed with documentation of risks
+- FAIL/REJECT: Any check critically fails → STOP. Fix the pipeline before proceeding. Do NOT proceed to full evaluation with flawed backtest results.
+
+**The meta-pattern breaker:** This gate exists specifically to prevent investing weeks in Phase 6 evaluation on top of Phase 5 results that are fundamentally flawed. Every failure mode from real production experience (60x P&L inflation, normalization bug, lookahead bias in simulation loops, zero-cost simulations, insufficient sample sizes) is caught HERE, not after deployment.
+
 ---
 
 ## Phase 6: STRATEGY EVALUATION
@@ -839,7 +883,62 @@ Estimate maximum AUM before alpha decays:
 - **Volume participation limit:** trades should be < 1% of daily volume (liquid) or < 0.1% (illiquid)
 - **Alpha decay curve:** how does Sharpe change as position sizes scale?
 
-### 6.5 Monte Carlo Analysis
+### 6.5 Overfitting Diagnostics (MANDATORY)
+
+Load `references/overfitting-diagnostics.md` and compute ALL of the following:
+
+```python
+# 1. Deflated Sharpe Ratio — corrects for multiple testing + non-normality
+dsr = deflated_sharpe_ratio(
+    observed_sharpe=strategy_sharpe,
+    sharpe_std=sharpe_se,
+    num_trials=N_configurations_tested,  # CRITICAL: include ALL variants ever tested
+    skewness=return_skewness,
+    kurtosis=return_kurtosis,
+    T=num_observations
+)
+# DSR < 0.05 → strategy likely overfit. Report probability of genuine skill.
+
+# 2. Probability of Backtest Overfitting (PBO) via CSCV
+pbo = compute_pbo(
+    returns_matrix=walk_forward_returns,  # Each column = one configuration
+    n_groups=16  # Split into 16 combinatorial groups
+)
+# PBO > 0.50 → more likely overfit than genuine. HALT.
+
+# 3. Walk-Forward Efficiency
+wfe = walk_forward_efficiency(is_sharpe, oos_sharpe)
+# WFE < 0.3 → overfit. WFE > 0.9 → suspicious (possible leakage). Healthy: 0.3-0.7
+
+# 4. Parameter Sensitivity Analysis
+sensitivity = parameter_sensitivity_analysis(
+    base_params=best_params,
+    param_ranges=param_perturbation_ranges,
+    eval_func=evaluate_strategy
+)
+# If >30% of perturbed configs produce negative Sharpe → strategy is fragile
+
+# 5. Permutation Test (Monte Carlo)
+perm_pvalue = permutation_test(returns, labels, n_permutations=1000)
+# p > 0.05 → cannot reject null hypothesis that strategy has no edge
+
+# 6. Regime Robustness Score
+regime_score = regime_robustness(returns, regime_labels)
+# Score < 0.3 → strategy only works in one regime
+```
+
+**Gate: OVERFITTING_AUDIT**
+```
+Task(subagent_type="nr-quant-auditor", description="Overfitting audit",
+  prompt="Run OVERFITTING_AUDIT. Check: DSR applied? PBO computed? WFE in healthy range?
+  Parameter sensitivity tested? Permutation test run? Regime decomposition done?
+  Write to .planning/audit/AUDIT-OVERFITTING.md")
+```
+- PASS if: DSR > 0.05, PBO < 0.50, WFE in [0.3, 0.9], sensitivity passes, permutation p < 0.05
+- FAIL if: Any critical diagnostic indicates overfitting
+- If FAIL: document which diagnostic failed and why → back to Phase 5 or kill strategy
+
+### 6.6 Monte Carlo Analysis
 
 Bootstrap confidence intervals and ruin probability:
 
@@ -889,6 +988,23 @@ graph LR
         R3["Capacity: ${N}M"]
     end
 ```
+
+**Gate: BACKTEST_AUDIT (Mandatory — runs BEFORE FULL_AUDIT)**
+
+The full 8-check backtest audit pipeline runs on Phase 6 results with STRICTEST thresholds. This is the final automated integrity check before the comprehensive audit.
+
+```
+Task(subagent_type="nr-quant-auditor", description="Backtest audit — Phase 6 full evaluation",
+  prompt="Run BACKTEST_AUDIT on Phase 6 strategy evaluation results.
+  Reference: references/backtest-audit-pipeline.md
+  STRICT MODE: This is the final evaluation. Apply strictest thresholds.
+  Count ALL hypotheses tested across ALL phases (1-6) toward DSR N.
+  Include the simplicity test: compare OOS Sharpe of full strategy vs. simplest baseline.
+  If simplest baseline Sharpe >= full strategy Sharpe, flag COMPLEXITY_UNJUSTIFIED.
+  Write to .planning/audit/BACKTEST-AUDIT-phase6.md")
+```
+- PASS: Proceed to FULL_AUDIT
+- FAIL: Stop. Fix issues. Do not proceed to FULL_AUDIT on top of flawed results.
 
 ### Gate: FULL_AUDIT (Team-Based Parallel)
 
@@ -1104,7 +1220,86 @@ def position_size(signal, volatility, target_vol=0.10, max_position=0.20):
     return np.clip(raw_size, -max_position, max_position)
 ```
 
-### 7.5 Shadow Trading Plan
+### 7.5 Production Reality Check (MANDATORY)
+
+Load `references/production-reality.md` and validate:
+
+```python
+# 1. Realistic execution cost model (NOT flat bps)
+realistic_cost = estimate_realistic_cost(
+    trade_size_usd=avg_trade_size,
+    daily_volume_usd=avg_daily_volume,
+    spread_bps=estimated_spread,
+    sigma_daily=daily_volatility,
+    fee_bps=exchange_fee
+)
+# Compare to backtest cost assumption. If realistic > 2x assumed → CRITICAL
+
+# 2. Capacity estimation
+capacity = estimate_capacity_usd(
+    daily_volume=avg_daily_volume,
+    spread_bps=estimated_spread,
+    sigma_daily=daily_volatility,
+    gross_alpha_bps=strategy_gross_alpha,
+    max_participation=0.01  # max 1% of daily volume
+)
+# If capacity < minimum viable AUM → strategy not worth deploying
+
+# 3. Fill rate sensitivity
+for fill_rate in [1.0, 0.8, 0.6, 0.4]:
+    adjusted_returns = simulate_partial_fills(returns, fill_rate)
+    adjusted_sharpe = compute_sharpe(adjusted_returns)
+    # At what fill rate does Sharpe drop below 1.0?
+
+# 4. Latency impact
+signal_half_life = estimate_signal_persistence(signal_series, return_series)
+# If signal_half_life < execution_latency → strategy is unimplementable
+```
+
+**Load and validate against case studies:**
+Reference `references/production-failure-case-studies.md`. For each case:
+- Does this strategy match any failure pattern? (Cases 1-10)
+- Are the specific fixes from each case implemented?
+
+**Risk management infrastructure check:**
+Reference `references/risk-management-framework.md`. Verify:
+- Kill switches implemented and configured (max daily loss, max drawdown, max position)
+- Position sizing uses volatility-adjusted method (Kelly, vol-target, or risk parity)
+- Drawdown management has automatic position scaling
+- Stress testing covers at least 3 historical scenarios
+
+**Gate: PRODUCTION_AUDIT**
+```
+Task(subagent_type="nr-quant-auditor", description="Production readiness audit",
+  prompt="Run PRODUCTION_AUDIT. Check: realistic cost model, capacity analysis,
+  fill rate modeling, kill switches, position limits, drift monitoring, data validation.
+  Reference: production-reality.md, risk-management-framework.md, live-drift-detection.md.
+  Write to .planning/audit/AUDIT-PRODUCTION.md")
+```
+- PASS if: production readiness score >= 60 (NEEDS_WORK or PRODUCTION_READY)
+- FAIL if: score < 60 (NOT_READY or BACKTEST_ONLY) — address gaps before proceeding
+
+### 7.6 Drift Monitoring Setup
+
+Load `references/live-drift-detection.md` and implement:
+
+1. **Performance drift monitors** — Rolling Sharpe, hit rate, profit factor with confidence bands
+2. **Distribution drift monitors** — KS test, PSI on feature distributions
+3. **Signal quality monitors** — Rolling IC, feature importance stability
+4. **Alert system** — Multi-tier (WATCH/WARNING/CRITICAL/EMERGENCY) with confirmation windows
+5. **Retraining triggers** — Automated detection of when model needs updating
+
+**Gate: DRIFT_AUDIT**
+```
+Task(subagent_type="nr-quant-auditor", description="Drift monitoring audit",
+  prompt="Run DRIFT_AUDIT. Check: performance monitoring exists, distribution drift testing exists,
+  signal quality tracking exists, alert system exists, retraining triggers defined.
+  Write to .planning/audit/AUDIT-DRIFT.md")
+```
+- WARNING if any monitoring category is absent
+- CRITICAL if no monitoring infrastructure exists at all
+
+### 7.7 Shadow Trading Plan
 
 Before committing real capital:
 - Run the strategy in shadow mode (paper trading) for minimum N days
@@ -1156,11 +1351,28 @@ RISK:
   Ruin probability (15% DD): [X.X%]
   Worst regime: [regime] (Sharpe: [X.XX])
 
+OVERFITTING DIAGNOSTICS:
+  Deflated Sharpe Ratio: [X.XX] (prob genuine skill: [X.X%])
+  Prob. Backtest Overfit: [X.X%]
+  Walk-Forward Efficiency: [X.XX]
+  Parameter Sensitivity: [ROBUST/FRAGILE]
+  Permutation p-value:    [X.XXX]
+
+PRODUCTION REALITY:
+  Realistic costs (vs assumed): [X.X] bps (vs [X.X] bps)
+  Estimated capacity:     $[X]M
+  Fill rate break-even:   [X%]
+  Signal half-life:       [X] seconds
+  Production readiness:   [XX]/100 ([READY/NEEDS_WORK/NOT_READY])
+
 AUDIT STATUS:
-  Data audit:       [PASS/FAIL] (score: [XX]/100)
-  Feature audit:    [PASS/FAIL] (score: [XX]/100)
-  Validation audit: [PASS/FAIL] (score: [XX]/100)
-  Full audit:       [PASS/FAIL] (score: [XX]/100)
+  Data audit:        [PASS/FAIL] (score: [XX]/100)
+  Feature audit:     [PASS/FAIL] (score: [XX]/100)
+  Validation audit:  [PASS/FAIL] (score: [XX]/100)
+  Overfitting audit: [PASS/FAIL]
+  Production audit:  [PASS/FAIL] (score: [XX]/100)
+  Drift monitoring:  [PASS/FAIL]
+  Full audit:        [PASS/FAIL] (score: [XX]/100)
 
 ═══════════════════════════════════════════════════════
 ```

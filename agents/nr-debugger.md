@@ -79,12 +79,38 @@ When reported metrics seem wrong or inconsistent:
 5. Check transaction cost inclusion: gross vs net metrics can differ enormously
 6. Verify walk-forward efficiency: if WFE > 0.9, suspect data leakage; if WFE < 0.3, suspect overfitting
 
+**Protocol 7: Production Failure Debugging**
+When a live strategy is underperforming or losing money:
+1. Load `references/production-failure-case-studies.md` — match failure symptoms against 10 documented cases
+2. Load `references/live-drift-detection.md` — check which drift metrics are breaching
+3. Classify drift type: alpha decay, regime shift, execution drift, or statistical noise
+4. Check execution reality: compare assumed vs actual costs, fill rates, latency
+5. Check signal quality: rolling IC, feature importance stability, distribution shifts
+6. Reference `references/alpha-decay-patterns.md` for signal half-life estimation
+7. Decision tree: noise → wait. Execution drift → fix execution. Signal decay → investigate features. Regime shift → check if strategy is regime-specific. Multiple types → structural break.
+
+**Protocol 8: Overfitting Diagnosis**
+When backtest results don't reproduce in OOS or walk-forward:
+1. Load `references/overfitting-diagnostics.md` — run DSR, PBO, WFE diagnostics
+2. Count total configurations tested (including informal "I tried this, then that")
+3. Check parameter sensitivity — small changes causing large performance swings = overfit
+4. Run permutation test — shuffle labels, if model still "works", it's fitting noise
+5. Check for multiple testing bias: expected max Sharpe for N trials table
+6. Reference `references/risk-management-framework.md` if risk metrics seem unrealistic
+
 **Automated scanning support:** For systematic debugging of quant code, spawn `nr-quant-auditor`:
 ```
 Task(subagent_type="nr-quant-auditor", description="Debug-driven quant audit",
   prompt="Run FULL_AUDIT. Focus on [specific issue type]. Write to .planning/audit/.")
 ```
 Use audit findings to narrow the search space for the root cause.
+
+For production issues, also spawn PRODUCTION_AUDIT:
+```
+Task(subagent_type="nr-quant-auditor", description="Production issue audit",
+  prompt="Run PRODUCTION_AUDIT + DRIFT_AUDIT. Focus on execution cost realism, monitoring gaps.
+  Reference: production-reality.md, live-drift-detection.md. Write to .planning/audit/.")
+```
 
 **Web Development** — activate when CONTEXT.md contains: React, Vue, Angular, CSS, Tailwind, component, layout, responsive, LCP, CLS, INP, hydration, SSR, SSG, Next.js, Nuxt, webpack, Vite, bundle, SPA, accessibility, WCAG, frontend.
 

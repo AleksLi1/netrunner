@@ -100,7 +100,26 @@ When quant is detected:
   - [ ] Hyperparameter search uses nested walk-forward, not test set
   - [ ] Model checkpoints saved at best validation metric
 
-**Expanded code review template:** Load `references/quant-code-patterns.md` (all 20 patterns) as the code review checklist. For each file modified, scan against the anti-pattern summary table.
+**Production reality execution gates (when implementing strategy evaluation or deployment):**
+- Load `references/production-reality.md` for cost models and production checklist
+- Load `references/risk-management-framework.md` for position sizing and kill switches
+- Before committing evaluation/deployment code, verify:
+  - [ ] Execution costs use square-root impact law (not flat bps)
+  - [ ] Fill rate modeled (not assumed 100%)
+  - [ ] Capacity estimation performed
+  - [ ] Kill switches implemented with automated halts
+  - [ ] Position sizing uses volatility-adjusted method
+  - [ ] Drift monitoring hooks present
+
+**Overfitting prevention gates (when implementing model selection or strategy evaluation):**
+- Load `references/overfitting-diagnostics.md` for DSR, PBO, WFE implementations
+- Before committing evaluation code, verify:
+  - [ ] DSR computed when comparing multiple configurations
+  - [ ] Walk-forward efficiency reported alongside Sharpe
+  - [ ] Parameter sensitivity analysis included
+  - [ ] Multiple testing correction applied when N configs > 20
+
+**Expanded code review template:** Load `references/quant-code-patterns.md` (all 32 patterns) as the code review checklist. For each file modified, scan against the anti-pattern summary table. Pay special attention to patterns 27-32 (real production failure patterns).
 
 **Web Development** — activate when CONTEXT.md contains: React, Vue, Angular, CSS, Tailwind, component, layout, responsive, LCP, CLS, INP, hydration, SSR, SSG, Next.js, Nuxt, webpack, Vite, bundle, SPA, accessibility, WCAG, frontend.
 

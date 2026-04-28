@@ -256,6 +256,13 @@ Failure signatures map observable symptoms to likely causes. Use these to short-
 | Adding more features doesn't improve performance | Feature saturation or multicollinearity | Run feature ablation. Check correlation matrix. Test with feature subsets. | "Need more data" (you might need BETTER features, not more) |
 | Model confident but wrong on large moves | Tail risk blindness | Check calibration on extreme events separately. Model may be calibrated on average but uncalibrated on tails. | "Outlier events, can't predict those" (if your strategy is exposed to them, you must account for them) |
 | Ensemble of strategies has lower Sharpe than best individual | Negative diversification: strategies are correlated | Check correlation matrix of strategy returns. Ensure strategies exploit different edges. | "Ensemble should always be better" (only if strategies are genuinely diverse) |
+| Backtest Sharpe 2+, live Sharpe < 0.5 | Execution cost underestimation (2-3x gap) | Compare assumed vs realized costs. Check fill rate, slippage, latency. See Case 6 in production-failure-case-studies.md | "Alpha decayed" (costs were never modeled realistically) |
+| ALL parameter configs negative in test | No alpha in strategy class, multiple testing artifact | Compute DSR across all configs. Check expected max Sharpe for N trials. See Case 4. | "Need to tune more" (the entire strategy class has no edge) |
+| Train-test gap > 10% | Feature leakage via normalization, feature selection, or split method | Audit full pipeline for expanding-window normalization, split temporal ordering. See Cases 1, 2, 5. | "Model just overfits a little" (10%+ gap = leakage, not overfitting) |
+| Strategy performance identical across all regimes | Normalization or regime detection using future data | Check if z-scores, HMM, or regime labels use full-dataset statistics. See Case 3. | "Robust strategy" (too good to be true — check for leakage) |
+| Signal IC declines monotonically over OOS | Alpha decay: signal losing predictive power | Estimate IC half-life. Check if factor is published/crowded. Load alpha-decay-patterns.md | "Needs retraining" (maybe the alpha is permanently gone) |
+| Rolling Sharpe dropping but P&L still positive | Transition from alpha to noise — strategy becoming break-even | Check rolling IC, distribution drift (KS test). Load live-drift-detection.md | "Just a drawdown" (could be permanent alpha erosion) |
+| Strategy profitable but can't scale beyond small size | Market impact eating alpha at larger sizes | Estimate capacity with square-root impact law. Check volume participation rate. | "Just need more capital" (strategy has capacity limits) |
 
 ### Web Failures
 
@@ -395,6 +402,13 @@ Common mistakes the brain should actively detect and prevent.
 | Single Seed Conviction | Drawing conclusions from one random seed | "It works!" based on one training run | Run 5+ seeds. If results vary by >2% across seeds, the signal is noise-dependent. |
 | Regime Amnesia | Training only on recent (favorable) data | Training period excludes major market events (crashes, regime changes) | Ensure training covers at least one full market cycle. |
 | Alpha Decay Denial | Deploying a strategy without monitoring for decay | No rolling performance monitoring post-deployment | Monitor rolling Sharpe and compare to backtest expectations. Set automatic shutdown thresholds. |
+| Cost Optimism | Assuming flat, low transaction costs in backtest | Flat bps cost model, no market impact, no slippage | Use square-root impact law. Validate costs with first 100 live fills. See production-reality.md. |
+| Capacity Blindness | Not estimating strategy capacity before deployment | No volume participation limits, no market depth analysis | Estimate capacity with impact model. Size for stressed conditions, not average. |
+| Kill Switch Absence | No automated risk limits for live trading | No max drawdown halt, no daily loss limit, no position limits | Implement kill switches BEFORE going live. Non-negotiable. See risk-management-framework.md. |
+| DSR Ignorance | Reporting raw Sharpe from best of N backtests | Multiple configs tested, best Sharpe reported without correction | Apply Deflated Sharpe Ratio. Count ALL configs ever tested. See overfitting-diagnostics.md. |
+| Published Factor Naivety | Building strategy around a published academic factor without checking decay | Factor IC assumed same as paper's reported IC | Check factor publication date, estimate current IC, assess crowding. See alpha-decay-patterns.md. |
+| Paper Trading Skipping | Deploying with real capital without shadow period | No paper trading phase, direct backtest-to-live | Minimum 2 weeks paper trading. Compare shadow results to backtest expectations. |
+| Drawdown Normalization | Treating large train-test gaps as "normal" overfitting | 10-20% accuracy gap between train and test accepted | >5% gap in classification = leakage signal. Investigate, don't normalize. See Case 5. |
 
 ### Verification Anti-Patterns
 
