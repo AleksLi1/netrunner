@@ -91,12 +91,29 @@ if (fs.existsSync(nrTools)) {
 }
 
 // 5. Install all hooks -> ~/.claude/hooks/
+//    Stamp each hook's nr-hook-version tag with the current VERSION so the
+//    staleness check in nr-check-update.js won't false-positive.
 ensureDir(HOOKS_DIR);
 const hooksSourceDir = path.join(PKG_DIR, 'hooks');
+const currentVersion = fs.existsSync(path.join(PKG_DIR, 'VERSION'))
+  ? fs.readFileSync(path.join(PKG_DIR, 'VERSION'), 'utf8').trim()
+  : null;
 if (fs.existsSync(hooksSourceDir)) {
   for (const file of fs.readdirSync(hooksSourceDir)) {
     if (file.startsWith('nr-') && file.endsWith('.js')) {
-      copyFile(path.join(hooksSourceDir, file), path.join(HOOKS_DIR, file));
+      const dest = path.join(HOOKS_DIR, file);
+      copyFile(path.join(hooksSourceDir, file), dest);
+      // Stamp version tag to match installed version
+      if (currentVersion) {
+        try {
+          let content = fs.readFileSync(dest, 'utf8');
+          content = content.replace(
+            /\/\/ nr-hook-version: .+/,
+            `// nr-hook-version: ${currentVersion}`
+          );
+          fs.writeFileSync(dest, content);
+        } catch (e) {}
+      }
       console.log(`  Installed hook: ${file}`);
     }
   }
@@ -151,7 +168,13 @@ try {
     registerHook('PreToolUse', 'nr-safety-gate.js', 'nr-safety-gate');
   }
 
-  // PostToolUse: deep work monitor (depth coaching reminders)
+  // PreToolUse: wrap-up blocker (intercepts premature session-end attempts during extended sessions)
+  const wrapUpHook = path.join(HOOKS_DIR, 'nr-wrap-up-blocker.js');
+  if (fs.existsSync(wrapUpHook)) {
+    registerHook('PreToolUse', 'nr-wrap-up-blocker.js', 'nr-wrap-up-blocker');
+  }
+
+  // PostToolUse: deep work monitor (depth coaching + extended-session enforcement)
   const deepWorkHook = path.join(HOOKS_DIR, 'nr-deep-work.js');
   if (fs.existsSync(deepWorkHook)) {
     registerHook('PostToolUse', 'nr-deep-work.js', 'nr-deep-work');

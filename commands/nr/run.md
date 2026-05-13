@@ -88,12 +88,24 @@ If matched:
 - Calculate `SESSION_END_TIME = now + duration`
 - Set `SESSION_CYCLE_CAP = 500` (vs default 50)
 - Strip the time expression from prompt text before classification
-- Store in STATE.md: `session_mode`, `session_end_time`, `session_cycle_cap`
+- **Persist the session budget to disk** so hooks (nr-deep-work, nr-wrap-up-blocker) can enforce it:
+
+```bash
+node ~/.claude/netrunner/bin/nr-tools.cjs session start --duration "<expression>" --raw
+```
+
+The CLI writes `$TEMP/nr-session-budget.json` (mode, start/end timestamps, cycle cap, reminder counters).
+This file is the **runtime source of truth** for all session enforcement — the run.md prompt instructions
+alone are not enough; only the persisted budget can drive hook-based enforcement.
 
 Display in Orient output:
 ```
  Session: EXTENDED (budget: [duration], ends ~[time])
+ Enforcement: hooks will inject directives every 5 min / 8 tool calls; wrap-up blocked while > 30 min remain
 ```
+
+If the user passes a STANDARD prompt (no time expression), explicitly do NOT call `session start` —
+the hooks default to gentle standard-mode reminders when no budget file exists.
 
 ### Research Corpus Discovery
 
@@ -279,10 +291,25 @@ Set `CYCLE_COUNT = 0`, `VERIFY_FAIL_COUNT = 0`, `CURRENT_ACTION = [first action]
 
 **4. Safety counter:** `CYCLE_COUNT += 1`. If > `SESSION_CYCLE_CAP` (50 standard, 500 extended): HALT with safety limit message.
 
+When `SESSION_MODE = EXTENDED`, also persist the cycle increment to disk so hooks see the same counter:
+```bash
+node ~/.claude/netrunner/bin/nr-tools.cjs session cycle --raw
+```
+
 **5. Extended session checks** (only when `SESSION_MODE = EXTENDED`):
+
+Read the active session budget from disk (single source of truth):
+```bash
+node ~/.claude/netrunner/bin/nr-tools.cjs session status --raw
+```
+
+The returned JSON contains: `mode`, `elapsed`, `remaining`, `remaining_ms`, `cycle_count`, `cycle_cap`, `reminders_sent`, `wrap_up_attempts`, `status`.
+
 - **Autonomy mode:** Suppress user confirmation prompts — infer reasonable defaults and proceed. Log each autonomous decision to CONTEXT.md decision log.
-- **Time check:** If current time > `SESSION_END_TIME` → initiate **Graceful Wind-Down** (see below). Complete current atomic operation, do not start new actions.
-- **Time warning:** If < 15 minutes remaining → log "Time budget nearly exhausted" and finish current action, then wind down.
+- **Time check:** If `remaining_ms <= 0` → initiate **Graceful Wind-Down** (see below). Complete current atomic operation, do not start new actions.
+- **Time warning:** If `remaining_ms < 15 * 60 * 1000` (15 minutes) → log "Time budget nearly exhausted" and finish current action, then wind down.
+- **Wrap-up attempt audit:** If `wrap_up_attempts > 0`, you have already attempted to wrap up prematurely and been blocked by the wrap-up interceptor. Do not attempt this again — find more work to do.
+- **Reminder fatigue check:** If `reminders_sent` is high (>20) but `cycle_count` is low (<10), Claude is reading many files without actually doing work. Switch to action mode — make an edit, run a test, ship something.
 
 ## Action: SCOPE
 
@@ -1325,7 +1352,13 @@ When time runs out mid-action (`SESSION_MODE = EXTENDED` and `SESSION_END_TIME` 
    - In-progress at wind-down: [what was happening]
    - Recommended next: [what to pick up next session]
    ```
-4. **Display wind-down banner:**
+4. **Clear the session budget** so hooks return to STANDARD mode and stop firing extended-mode enforcement:
+   ```bash
+   node ~/.claude/netrunner/bin/nr-tools.cjs session end --raw
+   ```
+   This is critical — without it, the next regular tool call would still see an "active" (expired) budget and the deep-work hook would log EXPIRED-band reminders into session-log.md.
+
+5. **Display wind-down banner:**
 ```
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
  NR ► SESSION COMPLETE (time budget exhausted)

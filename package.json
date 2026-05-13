@@ -1,6 +1,6 @@
 {
   "name": "netrunner-cc",
-  "version": "2.4.0",
+  "version": "2.5.0",
   "description": "Netrunner — The Autonomous Expert for Claude Code. Brain-driven project execution with diagnostic reasoning.",
   "keywords": ["claude", "claude-code", "ai", "autonomous", "project-management", "diagnostic", "expert-system"],
   "author": "Netrunner",

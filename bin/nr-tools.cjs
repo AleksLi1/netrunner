@@ -9,6 +9,12 @@
  * Usage: node nr-tools.cjs <command> [args] [--raw]
  *
  * Atomic Commands:
+ *   session start --duration <expr>    Begin extended session ("overnight", "for 3 hours", "8h")
+ *     [--mode EXTENDED|AUTO_RESEARCH]  Default: EXTENDED if duration given, STANDARD otherwise
+ *   session status                     Print active session budget (elapsed, remaining, cycles)
+ *   session end                        Clear session budget, log SESSION_END entry
+ *   session cycle                      Increment cycle counter (called by run.md chain loop)
+ *   session log <message>              Append a message to .planning/session-log.md
  *   state load                         Load project config + state
  *   state json                         Output STATE.md frontmatter as JSON
  *   state update <field> <value>       Update a STATE.md field
@@ -159,6 +165,7 @@ const commands = require('./lib/commands.cjs');
 const init = require('./lib/init.cjs');
 const frontmatter = require('./lib/frontmatter.cjs');
 const brain = require('./lib/brain.cjs');
+const session = require('./lib/session.cjs');
 
 // ─── CLI Router ───────────────────────────────────────────────────────────────
 
@@ -289,6 +296,29 @@ async function main() {
         state.cmdSignalResume(cwd, raw);
       } else {
         state.cmdStateLoad(cwd, raw);
+      }
+      break;
+    }
+
+    case 'session': {
+      const subcommand = args[1];
+      if (subcommand === 'start') {
+        const durationIdx = args.indexOf('--duration');
+        const modeIdx = args.indexOf('--mode');
+        session.cmdSessionStart(cwd, {
+          duration: durationIdx !== -1 ? args[durationIdx + 1] : null,
+          mode: modeIdx !== -1 ? args[modeIdx + 1] : null,
+        }, raw);
+      } else if (subcommand === 'status') {
+        session.cmdSessionStatus(cwd, raw);
+      } else if (subcommand === 'end') {
+        session.cmdSessionEnd(cwd, raw);
+      } else if (subcommand === 'cycle') {
+        session.cmdSessionIncrementCycle(cwd, raw);
+      } else if (subcommand === 'log') {
+        session.cmdSessionLog(cwd, args.slice(2).filter(a => !a.startsWith('--')).join(' '), raw);
+      } else {
+        session.cmdSessionStatus(cwd, raw);
       }
       break;
     }
