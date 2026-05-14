@@ -42,6 +42,48 @@ Every `/nr` invocation must produce a better answer than the user would get aski
 - Multi-project context linking — each project gets its own context file
 - Automatic experiment execution — Netrunner recommends, user executes
 
+## FE/BE Parity Initiative (started 2026-05-14)
+
+After v2.5.0, observed that the Web and API/Backend branches lag the quant branch in depth and enforcement strength. Quant has: dedicated auditor with 8 modes, 13 references, mandatory audit pipelines, 4 hard gates baked into the skill prompt, and mechanism-named subtypes. Web and API had: 3 references each, no active scanner, no audit pipelines, only soft "domain principle" lines.
+
+Diagnosis: not a content gap (4,100 lines of FE/BE references already exist), but a **mechanism gap** — the quant branch works because of *active scanning + hard gates + audit pipelines + mechanism subtypes* operating together. References alone activate weakly without enforcement.
+
+**Phase 1 (complete — 2026-05-14):**
+- ✓ `references/web-code-scan-patterns.md` — 26 grep-able anti-patterns
+- ✓ `references/api-code-scan-patterns.md` — 26 grep-able anti-patterns
+- ✓ `agents/nr-web-auditor.md` — 7 audit modes (ACCESSIBILITY, PERFORMANCE, BUNDLE, RENDER, HYDRATION, SECURITY, FULL)
+- ✓ `agents/nr-api-auditor.md` — 9 audit modes (SECURITY, AUTH, N_PLUS_ONE, CONTRACT, IDEMPOTENCY, RATE_LIMIT, RELIABILITY, OBSERVABILITY, FULL)
+- ✓ Web hard gates added to `commands/nr.md` (6 gates)
+- ✓ API hard gates added to `commands/nr.md` (7 gates)
+- ✓ Auditor availability lines added to Web and API domain detection sections
+
+**Phases 2-4 (planned, see `.planning/ROADMAP.md`):**
+- Phase 2: Audit pipelines (accessibility, performance, contract) + `/nr:run` AUDIT action wiring + build workflow gates
+- Phase 3: Failure case studies + mechanism-named subtype rename
+- Phase 4: Validation harness against real projects + v2.6.0 release
+
+## Creativity / Lateral Mode Initiative (started 2026-05-14)
+
+After Phase 1 of the FE/BE work, observed that Netrunner had no explicit activation pathway for divergent/lateral thinking. When conventional thinking exhausts (3+ exhausted clusters), the existing detector refuses to suggest repeats but offers no alternative reasoning mode — a missed opportunity exactly at the moment of maximum user value.
+
+Diagnosis: this is not a model-capability problem (LLMs have read Aristotle, Picasso, Feynman, every cross-domain thinker). It is an **activation-pathway problem** — default sampling on "how do I make X better?" collapses to the median professional response. Same thesis as the rest of Netrunner: knowledge is there, framing prevents activation.
+
+**Phase 1 (complete — 2026-05-14):**
+- ✓ `references/lateral-reframings.md` — 7 operational primitives (Analogical Transfer, Constraint Inversion, First-Principles Regression, Naive Question, Adversarial Probing, Combinatorial Recombination, Negative Space)
+- ✓ `references/analogy-library.md` — 48 curated cross-domain analogies indexed by software primitive
+- ✓ `references/creative-precedent.md` — empty seed for the per-project personal learning library
+- ✓ LATERAL classification added to `commands/nr.md` Special classifications table
+- ✓ Lateral / creativity awareness section added (alongside Cross-repo transfer and Auto-research awareness)
+- ✓ Four-phase response shape added to Step 3 (Reframing → Analogical Transfer → Assumption Inversion → Reconverge, optional Phase 5 META)
+- ✓ 7 lateral-mode hard gates added to pre-generation gate section
+- ✓ Auto-upgrade STRATEGY → LATERAL when 3+ exhausted clusters detected (uses existing infrastructure)
+- ✓ Success criteria updated
+
+**Phases 2-4 (planned, see `.planning/ROADMAP.md`):**
+- Phase 2: Validation against 5 real problems + wire the personal-library learning loop + expand analogy library to 80-100
+- Phase 3: Outsider expert persona overlay
+- Phase 4: Release as v2.7.0 (or v2.6.0 if released independently of FE/BE)
+
 ## Context
 
 Netrunner was born from a real problem: 12+ hours stuck at a 52% accuracy ceiling on a trading ML project because the LLM kept suggesting "try more data" instead of identifying that normalization was destroying trend signal. The LLM had the knowledge — the conversation framing prevented it from activating.
@@ -67,4 +109,4 @@ The skill is a single markdown file (`nr.md`) installed to `~/.claude/commands/`
 | Priority order from IMPROVEMENTS.md | Impact × effort already assessed from real usage | — Pending |
 
 ---
-*Last updated: 2026-03-19 — Phase 3 (Constraint Enforcement) complete*
+*Last updated: 2026-05-14 — Creativity / Lateral Mode Initiative Phase 1 complete (lateral-reframings + analogy-library + LATERAL classification + four-phase pipeline + auto-trigger on exhaustion + 7 lateral-mode hard gates). FE/BE Parity Phase 1 also complete earlier same day.*

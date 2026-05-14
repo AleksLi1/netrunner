@@ -24,7 +24,7 @@ That's it. Netrunner handles the rest — from project scoping through verified,
   - [Brain Assess: The Intelligence Layer](#brain-assess)
   - [Actions: What Gets Dispatched](#actions)
 - [The Brain](#the-brain)
-- [9 Specialized Agents](#9-specialized-agents)
+- [11 Specialized Agents](#11-specialized-agents)
 - [8 Domain Specializations](#8-domain-specializations)
 - [Advanced Capabilities](#advanced-capabilities)
   - [Extended Sessions](#extended-sessions)
@@ -423,7 +423,7 @@ nr-tools brain get-closed-paths        # Get failed approaches
 
 ---
 
-## 9 Specialized Agents
+## 11 Specialized Agents
 
 Agents are Claude Code subprocesses with specific tools and domain knowledge. They run in parallel when tasks are independent — a 5-task wave can dispatch 5 executors simultaneously.
 
@@ -437,7 +437,9 @@ Agents are Claude Code subprocesses with specific tools and domain knowledge. Th
 | **nr-debugger** | Scientific method: classify issue → hypothesize → test → narrow → fix. Manages debug sessions with checkpoints. Reads CONTEXT.md for prior failure patterns. | Read, Write, Edit, Bash, Grep, Glob, WebSearch |
 | **nr-mapper** | Analyzes codebase architecture. Writes structured docs (ARCHITECTURE.md, PATTERNS.md, DEPENDENCIES.md, CONCERNS.md) with Mermaid diagrams. Supports targeted NTP mapping mode. | Read, Bash, Grep, Glob, Write |
 | **nr-roadmapper** | Creates phased execution plans from requirements. Domain-aware ordering (e.g., validation-before-modeling for quant projects). | Read, Write, Bash, Glob, Grep |
-| **nr-quant-auditor** | Active code scanner for trading systems. 4 audit modes: TEMPORAL (lookahead), FEATURE (pipeline), VALIDATION (splits/metrics), FULL (all). Produces scored reports with temporal safety ratings. | Read, Write, Bash, Grep, Glob |
+| **nr-quant-auditor** | Active code scanner for trading systems. 8 audit modes: TEMPORAL, FEATURE, VALIDATION, PRODUCTION, DRIFT, OVERFITTING, BACKTEST (mandatory 8-check pipeline), FULL. Produces scored reports with temporal safety ratings. | Read, Write, Bash, Grep, Glob |
+| **nr-web-auditor** | Active code scanner for web/frontend. 7 audit modes: ACCESSIBILITY (WCAG 2.1), PERFORMANCE (LCP/CLS/INP), BUNDLE, RENDER, HYDRATION (SSR/RSC), SECURITY (XSS, leaked secrets, tabnabbing), FULL. 26 grep-able patterns from `references/web-code-scan-patterns.md`. | Read, Write, Edit, Bash, Grep, Glob |
+| **nr-api-auditor** | Active code scanner for API/backend. 9 audit modes: SECURITY (injection, RCE, secrets), AUTH (JWT, BOLA/IDOR), N+1, CONTRACT (breaking changes), IDEMPOTENCY (money paths), RATE_LIMIT, RELIABILITY (timeouts, transactions), OBSERVABILITY, FULL. 26 patterns with money-path severity upgrade. | Read, Write, Edit, Bash, Grep, Glob |
 
 ### Parallel dispatch
 
@@ -531,6 +533,30 @@ Karpathy-inspired autonomous experiment loop for optimization tasks. Runs a tigh
 **Integration with extended sessions:** `overnight` → up to 500 experiments. Brain batches updates every 5 experiments to keep context lean.
 
 **Output:** `.planning/auto-research/JOURNAL.md` (experiment-by-experiment log), `REPORT.md` (analysis), and git history (each improvement is a commit, failures are reverted).
+
+### Lateral Mode (Creative Reframing)
+
+For when conventional thinking is tapped out. The default `/nr` flow gives you median-competent expertise; Lateral mode gives you a four-phase divergent pipeline equipped with cross-domain primitives.
+
+```bash
+/nr --lateral "we're stuck on caching strategy"
+/nr --creative "rethink our auth flow"
+```
+
+**Auto-triggers** when the brain detects 3+ exhausted experiment clusters on a STRATEGY query — that's the moment conventional thinking has provably failed. A banner shows the auto-upgrade with a `--no-lateral` override.
+
+**Four-phase pipeline:**
+1. **REFRAMING** — 5-8 reframings of the problem itself, not solutions. "The problem is actually about ___, not ___."
+2. **ANALOGICAL TRANSFER** — deliberate parallels from non-software domains via the analogy library (cellular apoptosis ↔ cache invalidation, bee swarm voting ↔ distributed consensus, hotel keycards ↔ JWT refresh, etc.)
+3. **ASSUMPTION INVERSION** — list 3 load-bearing assumptions, ask "what if false?"
+4. **RECONVERGE** — 2-3 concrete avenues, each carrying a `LINEAGE` tag (ANALOGY / INVERSION / NAIVE / RECOMBO / NEG_SPACE) and a `PROVOCATION` line stating the uncomfortable part
+
+**Knowledge base:**
+- `references/lateral-reframings.md` — 7 operational primitives (analogical transfer, constraint inversion, first-principles regression, naive question, adversarial probing, combinatorial recombination, negative space) with templates and worked examples
+- `references/analogy-library.md` — 48 curated cross-domain analogies indexed by software primitive
+- `references/creative-precedent.md` — per-project personal library grown when the user marks an avenue as having unlocked their thinking
+
+**Hard gates:** Lateral avenues must carry a lineage tag, must use specific named analogies (not vague "like nature"), must include a provocation line, and must never re-land in the exhausted clusters that triggered the mode.
 
 ### Acceptance Testing
 
